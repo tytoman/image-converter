@@ -1,0 +1,98 @@
+# Changelog
+
+All notable changes to the `rav1d-safe` crate are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/). `rav1d-safe` is a fork of [rav1d](https://github.com/memorysafety/rav1d), which is itself a Rust port of [dav1d](https://code.videolan.org/videolan/dav1d); this fork adds archmage-based SIMD dispatch and removes the C FFI path. Entries below cover only changes made in this fork — upstream rav1d and dav1d release notes remain the canonical record for the shared decoder core. This file was backfilled from git history on 2026-04-15; the `[0.5.4]` date reflects the commit date of tag `v0.5.4` rather than the crates.io publish date.
+
+## [Unreleased]
+
+### QUEUED BREAKING CHANGES
+<!-- Breaking changes that will ship together in the next major (or minor for 0.x) release.
+     Add items here as you discover them. Do NOT ship these piecemeal — batch them. -->
+
+## [0.5.7] - 2026-05-26
+
+Memory-safety release. Supersedes 0.5.6 (yanked).
+
+### Fixed
+- **Depend on `rav1d-disjoint-mut 0.3.1`** (was `0.3.0`). The published 0.3.0 (2026-02-14) predated two safety fixes that existed only locally: the `PicBuf::from_vec_aligned` arithmetic-overflow OOB (reachable on 32-bit with crafted picture dimensions) and the index-trait sealing soundness fix. 0.5.6 was built against the stale registry 0.3.0 and shipped without them; 0.5.7 pulls the fixed 0.3.1. (dd60e0a)
+- **Harden the picture allocator size arithmetic** (`alloc_picture_data`): `round_up` and the per-plane `sz + RAV1D_PICTURE_ALIGNMENT` were unchecked adds that could wrap on 32-bit for plane sizes just below `usize::MAX`, yielding an under-sized allocation. Both now use `checked_add` and surface `ENOMEM` instead of wrapping.
+
+## [0.5.6] - 2026-05-26
+
+Performance release: closes the safe-checked-vs-ASM 4K AVIF gap from **1.66× to ~1.55×**
+(1.98× at the 2026-02 baseline → ~43% of the original gap closed) with zero new `unsafe` —
+`#![forbid(unsafe_code)]` holds for the default build throughout. No public API changes
+(`cargo semver-checks`: no semver update required).
+
+This release also adds AVX-512 (x86-64-v4 / ICL) and modern-ARM dispatch tiers (all
+bit-exact vs the AVX2/scalar reference; the benefit lands on native-512 hardware and is
+flat on AVX2-double-pump CPUs like Zen4) plus two ISA-independent dav1d algorithmic ports
+(decode_coefs index-offset, itx eob-pruning) that add a further ~3% on the AVX2 path
+(per-change interleaved A/B measurements in `benchmarks/decode_coefs_index_offset_2026-05-26.md`).
+
+### Performance — inverse transforms
+- i16-packed `pmaddwd` DCT row passes for 8bpc dct8/dct16/dct32 (`dct{8,16,32}_row_pass_i16_simd`), replacing the i32 `mullo_epi32` path. `_mm256_madd_epi16` (5c Zen3) does a multiply-add per pair where i32 needed `mullo`+`add` (10c). Bit-exact vs scalar reference across seeded fuzz; wired into the live 8x8/16x16/32x32 transforms (b660acc, 04ff4cf, 94fa376)
+- i16-packed `pmaddwd` DCT column passes (`dct{8,16,32}_col_pass_i16`) — completes the full i16 row+col pipeline for 8bpc DCT_DCT, extended to all 8bpc DCT-32 column sites (16x32/64x32/8x32) with runtime 8bpc/16bpc dispatch (aeba194, 1f2fd70, 802e22c)
+- SIMD row 1D transforms for 8bpc dct8/16/32 across all sizes (8x8/8x16/8x32; 16x8/16x16/16x32/16x64; 32x8/32x16/32x32/32x64) + 16x16 dct/adst/flipadst-row mixed variants via `impl_16x16_transform_simd_row_{dct,adst}_col!` macros (464bcc3, edd008a, 6becd5b, 0caef66, a6a8457)
+- DC-only fast path for DCT_DCT when `eob == 0` — broadcasts the scaled DC via width-tiered AVX2/SSE2/scalar `dc_only_add_{8,16}bpc` instead of running the full 2-pass transform (33f7402)
+- Right-size scalar `inv_txfm_add` tmp buffer: 16 KB stack `[0; 64*64]` → const-generic `[[0i32; W]; H]`, dropping per-call memset (was ~3% of profile) (96e93d7)
+- 8x8 add-to-dst: contiguous `loadu_256!` replaces 8× `_mm_set_epi32` scatter (27 `vmovd`/block) (ac490f9)
+
+### Performance — loopfilter
+- Token upgrade `X64V2Token` (SSE4.2) → `Desktop64`/`X64V3Token` (AVX2+FMA+BMI2) — unlocks YMM-width loopfilter. `cargo asm` confirms YMM in the dispatcher (was 0) (aa23eb8)
+- YMM x8 widen for wd=4/8/16 v-filter and wd=8 h-filter: when two adjacent edges share a filter level, one 8-lane kernel processes both. wd=6 h-filter newly SIMD (was scalar). 4K AVIF loopfilter share ~9% → measurably reduced; ratio 1.60 → ~1.51 (c320fa1, 70576f3, cb09031, a2c2b24, 40b6b3e)
+- Hoist target_feature region to outer dispatch + `#[arcane]`→`#[rite]` inner conversions so per-edge SIMD inlines into the per-superblock region (eee9005, 2d0d05c, f018bb5, ffbdca4)
+
+### Performance — other
+- SIMD `cfl_ac_dispatch` (4:2:0/4:2:2/4:4:4 8bpc) — `cfl_ac_rust` profile share 1.49% → 1.05% (6512b9b, d48656c)
+- `ctx_refill` bulk 8-byte BSWAP load via `u64::from_be_bytes`, matching dav1d's 5-instruction refill (4e145dc)
+- `with_pixel_guard_immut` + `decode_coefs` immutable a/l context slices + per-block guard fusion — reduces BorrowTracker traffic in `recon.rs`/`ipred_prepare.rs` hot paths (475e61d, 9f3ad5c, c33050e)
+
+### Performance — dav1d algorithmic ports (ISA-independent, help all CPUs)
+- `decode_coefs` index-offset optimization (dav1d `5ef6b241` + fix `63bf075a`): cache `slw`/`slh`/`tx2dszctx`, derive the eob context via shifts, and for `TX_CLASS_2D` index the `levels` scratch by `rc`/`rc_i` directly — dropping a per-coefficient `imul` in the single hottest loop of the profile (decode_coefs ~45% of 4K AVIF). **~2.6%** faster 4K AVIF (checked). Bit-exact: 14/14 MD5 + 6/6 cross-level conformance. (Our port matches dav1d's *fixed* form; the original `5ef6b241` had an `if (TX_CLASS_2D)` typo that disabled the hot-loop win in dav1d until June 2025.) (e24b479)
+- itx EOB pruning (dav1d `ca83ee6d`): in `dct{32,16}_row_pass_i16_simd`, OR-reduce each 8-row batch (fused with the existing column load) and skip the butterfly+transpose for all-zero batches via `_mm_testz_si128` — self-evidently bit-exact (`out` is pre-zeroed). 32x32: **−0.8% mean / −1.6% median** 4K AVIF; 16x16: neutral on photos, helps sparse content. New sparse-batch unit tests. (ab61fc3, 8bf5e84)
+
+### Added — AVX-512 (x86-64-v4 / ICL) and modern-ARM SIMD tiers
+All bit-exact vs the AVX2/scalar reference (14/14 MD5). On AVX2-double-pump hardware (Zen4) these bench flat; the benefit lands on native-512 execution units (Intel Ice Lake server / Sapphire Rapids, Zen5).
+- itx (`Server64`/X64V4): AVX-512 16-row DCT row passes + dct4/8/16/32 and identity (IDTX) column passes, wired into the wide transform sites (8997bc4, 75d2e68, 954a252, 4b81aa8, 0d74989)
+- cdef (`Server64`/X64V4): AVX-512 8bpc directional filter (629e454)
+- loopfilter (`Server64`/X64V4): AVX-512 wd=16 v-filter, 16 lanes (2e24a30, 572cb77)
+- ipred (`X64V4xToken`/AVX-512ICL): z1/z2/z3 directional predictors via `vpermi2b` register-resident gather — z3 was previously scalar (5667552, 430e7a8, 4b76f48)
+- ARM (`Arm64V2`/`Arm64V3`): scaffolded DotProd/I8MM 8-tap MC dispatch + a `summon_arm64v2/v3` runtime gate, cfg-gated OFF by default (the `vdotq_s32`/`vusdotq_s32` intrinsics are nightly-only). The stable default build is byte-for-byte unchanged NEON; bit-exactness of the DotProd source-bias correction is proven by an exhaustive host test (75f044c)
+
+### Added
+- `itx_mul2x_pack!` macro: bit-exact `pmaddwd`+`paddd`+`psrad` equivalent of dav1d's `ITX_MUL2X_PACK`, verified across 13,312 input pairings (8cadc48, a9fbce9)
+- `transpose_8x8_i32!` macro: single source of truth for the 24-instruction in-register 8x8 i32 transpose (8cadc48)
+
+### Changed
+- Split the ~23K-line `src/safe_simd/itx.rs` into a thin `include!` shell + 10 part files (`itx/part01..part10`) for navigability. Single-module textual split — all 43 `macro_rules!` and 462 items stay mutually visible; zero visibility/macro/logic changes (813358b)
+- `debug_assert!` i16-range precondition in `i32_to_i16_pair` — catches future callers feeding unclipped data that `_mm_packs_epi32` would silently saturate (d01bf9c)
+
+### Fixed
+- Resolve all clippy warnings (`-D warnings` clean on the default `--all-targets` build) (c916f44)
+
+## [0.5.5] - 2026-04-17
+
+### Changed
+- Replace blanket `#![allow(clippy::all)]` with a targeted lint policy across 27 files: 22 specific lint allows (each documented with warning count and rationale) cover pervasive C-port patterns such as `precedence`, `too_many_arguments`, `unnecessary_cast`, `identity_op`, and `needless_range_loop`, while ~100 warnings for the remaining enabled lints were fixed in place (db99f94, #7)
+- Add crate-level allows for seven additional clippy lints that fire on CI's clippy 1.87+ (`duplicated_attributes`, `manual_is_multiple_of`, `let_and_return`, `unnecessary_map_on_constructor`, `clone_on_copy`, `option_map_unit_fn`, `unnecessary_lazy_evaluations`) — all pervasive C-port patterns not worth fixing individually (8c6621c, #7)
+
+### Fixed
+- Restore `MsacAsmContext` visibility for asm builds: the lint-audit refactor had accidentally gated the type behind `#[cfg(not(asm_msac))]`, breaking the `asm`-feature CI job; the erroneous cfg gate is removed and the manual `Default` impl (needed because the conditionally-compiled `symbol_adapt16` fn-pointer field doesn't derive `Default`) is reinstated (96dde32, #7)
+
+### Tests
+- `CpuLevel` doctest in `src/managed.rs` builds `Settings` via `Settings::default()` plus field mutation instead of a bare struct expression, avoiding E0639 on `#[non_exhaustive]` structs across the crate boundary that doctests compile against (008a811)
+
+### Internal
+- Ignore the `.workongoing` coordination marker file (008a811)
+
+## [0.5.4] - 2026-04-10
+
+Patch release focused on concurrency safety, parser hardening, and fuzz coverage.
+
+### Fixed
+- CDEF tile threading race
+- MV parsing overflow guard
+- `wrapping_sub` in `read_golomb`
+
+### Tests
+- AV1 fuzz dictionary expansion

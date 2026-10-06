@@ -1,0 +1,175 @@
+---
+import { icon } from '../icons';
+
+const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP', 'PSD'];
+---
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f2f3f1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1211" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <title>画像変換 — ローカルで安全に変換</title>
+    <meta name="description" content="画像をブラウザー内で変換。ファイルは端末の外へ送信されません。" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="titlebar">
+        <a class="brand" href="#top" aria-label="画像変換 ホーム">
+          <span class="brand-mark" aria-hidden="true"><Fragment set:html={icon('image', 14)} /></span>
+          <span class="brand-name">画像変換</span>
+          <span class="brand-sub">Local Image Tool</span>
+        </a>
+        <div class="titlebar-end">
+          <span id="engine-state" class="engine-state" data-tooltip="変換エンジンを確認中"><i aria-hidden="true"></i><span class="engine-label">変換エンジンを確認中</span></span>
+          <span class="titlebar-divider" aria-hidden="true"></span>
+          <button id="theme-toggle" class="icon-button" type="button" aria-label="テーマを切り替え" data-tooltip="テーマを切り替え"><Fragment set:html={icon('moon', 16, 'theme-icon-moon')} /><Fragment set:html={icon('sun', 16, 'theme-icon-sun')} /></button>
+        </div>
+      </header>
+
+      <main class="layout" id="top">
+        <section class="intro">
+          <div>
+            <p class="eyebrow">Image Converter</p>
+            <h1>画像を、必要な形式へ。</h1>
+            <p class="lede">ファイルはこのブラウザー内で処理され、サーバーへ送信されません。</p>
+          </div>
+          <ul class="facts" aria-label="特長">
+            <li><Fragment set:html={icon('lock', 14)} />アップロードなし</li>
+            <li><Fragment set:html={icon('offline', 14)} />オフライン動作</li>
+            <li><Fragment set:html={icon('cpu', 14)} />WebAssembly</li>
+          </ul>
+        </section>
+
+        <div class="main-col">
+          <section class="panel workspace" aria-labelledby="files-title">
+            <div class="panel-header">
+              <div class="panel-title"><span class="step">01</span><h2 id="files-title">ファイル</h2><span id="file-count" class="count">0 件</span></div>
+              <div class="panel-actions">
+                <button id="clear-files" class="button subtle" type="button" disabled><Fragment set:html={icon('trash', 14)} /><span class="label-long">すべて削除</span></button>
+                <button id="add-files" class="button outlined" type="button" data-tooltip="ファイルを追加" data-kbd="Mod O"><Fragment set:html={icon('plus', 14)} />ファイルを追加</button>
+                <input id="file-input" type="file" multiple hidden accept=".png,.jpg,.jpeg,.webp,.heif,.heic,.bmp,.tif,.tiff,.gif,.avif,.cr2,.nef,.arw,.psd,.ai,.pdf,.dcm,.dicom" />
+              </div>
+            </div>
+
+            <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="ファイルをドロップ、またはファイルを追加">
+              <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span><span class="corner bl" aria-hidden="true"></span><span class="corner br" aria-hidden="true"></span>
+              <div class="drop-art" aria-hidden="true">
+                <svg class="icon" viewBox="0 0 48 48">
+                  <g class="back" opacity=".45"><rect x="13" y="5" width="28" height="22" rx="3" /></g>
+                  <rect x="6" y="12" width="30" height="24" rx="3" fill="var(--surface-default)" />
+                  <circle cx="14.5" cy="20" r="2.5" />
+                  <path d="M6.5 32.5 16 24l6 5.5 4-3.5 9.5 8" />
+                  <circle class="badge" cx="37" cy="36" r="8" />
+                  <path class="badge-arrow" d="M37 40.5v-9M33.5 35 37 31.5 40.5 35" />
+                </svg>
+              </div>
+              <div class="drop-copy">
+                <strong>画像をここにドロップ</strong>
+                <span>または <button id="browse-inline" class="text-button" type="button">ファイルを選択</button><span class="shortcut-sep" aria-hidden="true">·</span><span class="shortcut" aria-label="ショートカット Ctrl O"><kbd data-mod>Ctrl</kbd><kbd>O</kbd></span></span>
+              </div>
+              <ul class="format-chips" aria-label="主な対応形式">
+                {inputFormats.map((format) => <li>{format}</li>)}
+                <li class="more">ほか</li>
+              </ul>
+            </div>
+
+            <div id="file-list-wrap" class="file-list-wrap" hidden>
+              <div class="list-head" aria-hidden="true"><span>名前</span><span class="num">サイズ</span><span>画像情報</span><span>変換範囲</span><span>状態</span><span></span></div>
+              <div id="file-list" class="file-list" role="list" aria-label="追加したファイル"></div>
+            </div>
+            <div class="panel-footer"><span id="file-hint">最大ファイルサイズはブラウザーのメモリに依存します。</span></div>
+          </section>
+
+          <section id="results-panel" class="panel results-panel" aria-labelledby="results-title" hidden>
+            <div class="panel-header">
+              <div class="panel-title"><span class="step">03</span><h2 id="results-title">変換結果</h2><span id="result-count" class="count"></span></div>
+              <button id="download-all" class="button tinted" type="button" disabled data-tooltip="すべてを ZIP で保存" data-kbd="Mod S"><Fragment set:html={icon('archive', 14)} />ZIP で保存</button>
+            </div>
+            <div id="results-list" class="results-list" role="list" aria-label="変換したファイル"></div>
+          </section>
+        </div>
+
+        <aside class="inspector">
+          <section class="panel settings-panel" aria-labelledby="settings-title">
+            <div class="panel-header">
+              <div class="panel-title"><span class="step">02</span><h2 id="settings-title">変換設定</h2></div>
+              <div class="select-wrap">
+                <label class="sr-only" for="preset">プリセット</label>
+                <select id="preset" class="select preset-select"><option value="custom">カスタム</option><option value="web">Web 用 · 軽量</option><option value="archive">保存用 · 高品質</option><option value="social">SNS · 2048 px</option></select>
+                <Fragment set:html={icon('chevronDown', 14)} />
+              </div>
+            </div>
+            <div class="settings-body">
+              <fieldset class="field format-group">
+                <legend class="field-label">出力形式</legend>
+                <div id="output-format" class="format-grid"></div>
+                <small id="format-note" class="field-note">利用可能な形式を確認しています。</small>
+              </fieldset>
+              <div id="quality-group" class="field quality-group">
+                <div class="field-label-row"><label class="field-label" for="quality">品質</label><output id="quality-value" for="quality">85</output></div>
+                <input id="quality" class="range" type="range" min="1" max="100" value="85" />
+                <div class="range-labels" aria-hidden="true"><span>小さい</span><span>高品質</span></div>
+                <small id="quality-note" class="field-note" hidden></small>
+              </div>
+              <fieldset id="compression-group" class="field compression-group">
+                <legend class="field-label">圧縮レベル</legend>
+                <div id="compression" class="segmented">
+                  <label><input type="radio" name="compression" value="1" /><span>速い</span></label>
+                  <label><input type="radio" name="compression" value="6" checked /><span>標準</span></label>
+                  <label><input type="radio" name="compression" value="9" /><span>高圧縮</span></label>
+                </div>
+                <small id="compression-note" class="field-note">可逆形式で使用します</small>
+              </fieldset>
+              <fieldset class="field resolution-group">
+                <legend class="field-label">出力サイズ</legend>
+                <div class="resolution-row">
+                  <label class="dimension"><span>幅</span><input id="width" type="number" inputmode="numeric" min="1" max="16384" placeholder="元のまま" aria-label="出力幅" /><small>px</small></label>
+                  <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="keep-aspect" type="checkbox" checked aria-label="アスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
+                  <label class="dimension"><span>高さ</span><input id="height" type="number" inputmode="numeric" min="1" max="16384" placeholder="元のまま" aria-label="出力高さ" /><small>px</small></label>
+                </div>
+                <small class="field-note">空欄で元のサイズを維持 · 最大 16,384 px</small>
+              </fieldset>
+            </div>
+            <div class="settings-footer">
+              <dl class="summary">
+                <dt>対象</dt><dd id="summary-count">—</dd>
+                <dt>出力</dt><dd id="summary-output">—</dd>
+              </dl>
+              <p id="selection-note" class="selection-note">ファイルを追加すると、選択範囲をここで確認できます。</p>
+              <div id="progress-wrap" class="progress-wrap" hidden>
+                <div class="progress-meta"><span id="progress-label">準備中…</span><span id="progress-percent">0%</span></div>
+                <div class="progress-track" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-bar"></span></div>
+              </div>
+              <div class="run-actions">
+                <button id="cancel-convert" class="button tinted danger" type="button" hidden><Fragment set:html={icon('stop', 14)} />キャンセル<span class="shortcut"><kbd>Esc</kbd></span></button>
+                <button id="convert" class="button primary" type="button" disabled><Fragment set:html={icon('convert', 16)} /><span class="label">変換する</span><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>↵</kbd></span></button>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <footer class="app-footer">
+        <span><Fragment set:html={icon('lock', 12)} />画像変換はローカルの WebAssembly エンジンで実行されます。</span>
+        <ul class="shortcut-list" aria-label="キーボードショートカット">
+          <li><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>O</kbd></span>ファイル追加</li>
+          <li><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>↵</kbd></span>変換</li>
+          <li><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>S</kbd></span>ZIP 保存</li>
+          <li><span class="shortcut"><kbd>Esc</kbd></span>キャンセル</li>
+        </ul>
+      </footer>
+    </div>
+
+    <div class="drop-overlay" aria-hidden="true">
+      <div class="drop-overlay-frame"><Fragment set:html={icon('plus', 16)} /><strong>ドロップしてファイルを追加</strong><span>端末内で処理され、送信されません</span></div>
+    </div>
+    <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+    <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+    <script>import '../styles.css'; import '../client.ts';</script>
+  </body>
+</html>
