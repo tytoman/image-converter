@@ -638,6 +638,7 @@ function renderResults() {
   const fail = results.filter((r) => r.error).length;
   $('result-count').textContent = `${succ} 件成功${fail ? ` · ${fail} 件失敗` : ''}`;
   $('download-all').toggleAttribute('disabled', running || succ === 0);
+  $('reset-results').toggleAttribute('disabled', running || !resultsOpen);
 
   $('results-list').replaceChildren(
     ...results.map((result) => {
@@ -697,6 +698,25 @@ function cleanupResults() {
   }
   results.length = 0;
   storedOutputBytes = 0;
+}
+
+function resetResults() {
+  if (running || !resultsOpen) return;
+  cleanupResults();
+  resultsOpen = false;
+  const progressWrap = $('progress-wrap');
+  progressWrap.hidden = true;
+  progressWrap.className = 'progress-wrap';
+  $('progress-label').textContent = '準備中…';
+  $('progress-percent').textContent = '0%';
+  const bar = $('progress-bar');
+  bar.style.width = '0%';
+  bar.parentElement?.setAttribute('aria-valuenow', '0');
+  renderResults();
+  updateControls();
+  $('convert').focus();
+  if (document.activeElement === $('reset-results')) $('add-files').focus();
+  announce('変換結果をリセットしました');
 }
 
 function readOptions(frame: number, meta: Metadata) {
@@ -837,7 +857,7 @@ async function convertAll() {
   running = false;
   cancelling = false;
 
-  for (const id of ['preset', 'width', 'height']) ($(id) as HTMLInputElement).disabled = false;
+  for (const id of ['preset', 'scale-percent']) ($(id) as HTMLInputElement).disabled = false;
   $('cancel-convert').hidden = true;
   progressWrap.className = `progress-wrap ${wasCancelled ? '' : 'done'}`;
   $('progress-label').textContent = wasCancelled
@@ -1082,6 +1102,7 @@ $('clear-files').addEventListener('click', clearFiles);
 $('convert').addEventListener('click', () => void convertAll());
 $('cancel-convert').addEventListener('click', cancel);
 $('download-all').addEventListener('click', () => void downloadZip());
+$('reset-results').addEventListener('click', resetResults);
 
 quality.addEventListener('input', updateQuality);
 $('preset').addEventListener('change', (event) => applyPreset((event.target as HTMLSelectElement).value));

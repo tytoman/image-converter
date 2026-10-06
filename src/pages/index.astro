@@ -1,4 +1,4 @@
-﻿---
+---
 import { icon } from '../icons';
 
 const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP', 'PSD'];
@@ -8,8 +8,8 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f2f3f1" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0f1211" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f3f3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <title>画像変換 — ローカルで安全に変換</title>
@@ -20,9 +20,8 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
     <div class="app">
       <header class="titlebar">
         <a class="brand" href="#top" aria-label="画像変換 ホーム">
-          <span class="brand-mark" aria-hidden="true"><Fragment set:html={icon('image', 14)} /></span>
+          <Fragment set:html={icon('image', 16)} />
           <span class="brand-name">画像変換</span>
-          <span class="brand-sub">Local Image Tool</span>
         </a>
         <div class="titlebar-end">
           <span id="engine-state" class="engine-state" data-tooltip="変換エンジンを確認中"><i aria-hidden="true"></i><span class="engine-label">変換エンジンを確認中</span></span>
@@ -32,23 +31,12 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
       </header>
 
       <main class="layout" id="top">
-        <section class="intro">
-          <div>
-            <p class="eyebrow">Image Converter</p>
-            <h1>画像を、必要な形式へ。</h1>
-            <p class="lede">ファイルはこのブラウザー内で処理され、サーバーへ送信されません。</p>
-          </div>
-          <ul class="facts" aria-label="特長">
-            <li><Fragment set:html={icon('lock', 14)} />アップロードなし</li>
-            <li><Fragment set:html={icon('offline', 14)} />オフライン動作</li>
-            <li><Fragment set:html={icon('cpu', 14)} />WebAssembly</li>
-          </ul>
-        </section>
+        <h1 class="sr-only">画像変換</h1>
 
         <div class="main-col">
           <section class="panel workspace" aria-labelledby="files-title">
             <div class="panel-header">
-              <div class="panel-title"><span class="step">01</span><h2 id="files-title">ファイル</h2><span id="file-count" class="count">0 件</span></div>
+              <div class="panel-title"><h2 id="files-title">ファイル</h2><span id="file-count" class="count">0 件</span></div>
               <div class="panel-actions">
                 <button id="clear-files" class="button subtle" type="button" disabled><Fragment set:html={icon('trash', 14)} /><span class="label-long">すべて削除</span></button>
                 <button id="add-files" class="button outlined" type="button" data-tooltip="ファイルを追加" data-kbd="Mod O"><Fragment set:html={icon('plus', 14)} />ファイルを追加</button>
@@ -57,25 +45,12 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
             </div>
 
             <div id="drop-zone" class="drop-zone" role="group" aria-label="画像ファイルの追加">
-              <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span><span class="corner bl" aria-hidden="true"></span><span class="corner br" aria-hidden="true"></span>
-              <div class="drop-art" aria-hidden="true">
-                <svg class="icon" viewBox="0 0 48 48">
-                  <g class="back" opacity=".45"><rect x="13" y="5" width="28" height="22" rx="3" /></g>
-                  <rect x="6" y="12" width="30" height="24" rx="3" fill="var(--surface-default)" />
-                  <circle cx="14.5" cy="20" r="2.5" />
-                  <path d="M6.5 32.5 16 24l6 5.5 4-3.5 9.5 8" />
-                  <circle class="badge" cx="37" cy="36" r="8" />
-                  <path class="badge-arrow" d="M37 40.5v-9M33.5 35 37 31.5 40.5 35" />
-                </svg>
-              </div>
+              <Fragment set:html={icon('download', 24, 'drop-icon')} />
               <div class="drop-copy">
                 <strong>画像をここにドロップ</strong>
                 <span>または <button id="browse-inline" class="text-button" type="button">ファイルを選択</button><span class="shortcut-sep" aria-hidden="true">·</span><span class="shortcut" aria-label="ショートカット Ctrl O"><kbd data-mod>Ctrl</kbd><kbd>O</kbd></span></span>
               </div>
-              <ul class="format-chips" aria-label="主な対応形式">
-                {inputFormats.map((format) => <li>{format}</li>)}
-                <li class="more">ほか</li>
-              </ul>
+              <p class="drop-formats">{inputFormats.join(', ')} ほか</p>
             </div>
 
             <div id="file-list-wrap" class="file-list-wrap" hidden>
@@ -87,8 +62,11 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
 
           <section id="results-panel" class="panel results-panel" aria-labelledby="results-title" hidden>
             <div class="panel-header">
-              <div class="panel-title"><span class="step">03</span><h2 id="results-title">変換結果</h2><span id="result-count" class="count"></span></div>
-              <button id="download-all" class="button tinted" type="button" disabled data-tooltip="すべてを ZIP で保存" data-kbd="Mod S"><Fragment set:html={icon('archive', 14)} />ZIP で保存</button>
+              <div class="panel-title"><h2 id="results-title">変換結果</h2><span id="result-count" class="count"></span></div>
+              <div class="panel-actions">
+                <button id="reset-results" class="button subtle" type="button" disabled aria-label="変換結果をリセット"><Fragment set:html={icon('trash', 14)} />リセット</button>
+                <button id="download-all" class="button tinted" type="button" disabled data-tooltip="すべてを ZIP で保存" data-kbd="Mod S"><Fragment set:html={icon('archive', 14)} />ZIP で保存</button>
+              </div>
             </div>
             <div id="results-list" class="results-list" role="list" aria-label="変換したファイル"></div>
           </section>
@@ -97,7 +75,7 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
         <aside class="inspector">
           <section class="panel settings-panel" aria-labelledby="settings-title">
             <div class="panel-header">
-              <div class="panel-title"><span class="step">02</span><h2 id="settings-title">変換設定</h2></div>
+              <div class="panel-title"><h2 id="settings-title">変換設定</h2></div>
               <div class="select-wrap">
                 <label class="sr-only" for="preset">プリセット</label>
                 <select id="preset" class="select preset-select"><option value="custom">カスタム</option><option value="web">Web 用 · 軽量</option><option value="archive">保存用 · 高品質</option><option value="social">SNS · 2048 px</option></select>
@@ -105,11 +83,11 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
               </div>
             </div>
             <div class="settings-body">
-              <fieldset class="field format-group">
-                <legend class="field-label">出力形式</legend>
-                <div id="output-format" class="format-grid"></div>
+              <div class="field format-group">
+                <div id="output-format-label" class="field-label">出力形式</div>
+                <div id="output-format" class="format-grid" role="radiogroup" aria-labelledby="output-format-label"></div>
                 <small id="format-note" class="field-note">利用可能な形式を確認しています。</small>
-              </fieldset>
+              </div>
               <div id="compression-group" class="field compression-group">
                 <div id="compression-label" class="field-label">圧縮レベル</div>
                 <div id="compression" class="segmented" role="radiogroup" aria-labelledby="compression-label">
