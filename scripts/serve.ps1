@@ -22,6 +22,11 @@ if ($OpenBrowser) { Start-Process $url }
 $mime = @{ '.html'='text/html; charset=utf-8'; '.js'='text/javascript; charset=utf-8'; '.css'='text/css; charset=utf-8'; '.wasm'='application/wasm'; '.svg'='image/svg+xml'; '.json'='application/json'; '.png'='image/png'; '.ico'='image/x-icon' }
 try {
   while ($true) {
+    # Keep returning control to PowerShell so Ctrl+C can interrupt the server.
+    if (!$listener.Pending()) {
+      Start-Sleep -Milliseconds 100
+      continue
+    }
     $client = $listener.AcceptTcpClient()
     try {
       $client.ReceiveTimeout = 5000

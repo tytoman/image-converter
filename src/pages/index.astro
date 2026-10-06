@@ -1,4 +1,4 @@
----
+﻿---
 import { icon } from '../icons';
 
 const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP', 'PSD'];
@@ -56,7 +56,7 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
               </div>
             </div>
 
-            <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="ファイルをドロップ、またはファイルを追加">
+            <div id="drop-zone" class="drop-zone" role="group" aria-label="画像ファイルの追加">
               <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span><span class="corner bl" aria-hidden="true"></span><span class="corner br" aria-hidden="true"></span>
               <div class="drop-art" aria-hidden="true">
                 <svg class="icon" viewBox="0 0 48 48">
@@ -110,30 +110,27 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
                 <div id="output-format" class="format-grid"></div>
                 <small id="format-note" class="field-note">利用可能な形式を確認しています。</small>
               </fieldset>
-              <div id="quality-group" class="field quality-group">
-                <div class="field-label-row"><label class="field-label" for="quality">品質</label><output id="quality-value" for="quality">85</output></div>
-                <input id="quality" class="range" type="range" min="1" max="100" value="85" />
-                <div class="range-labels" aria-hidden="true"><span>小さい</span><span>高品質</span></div>
-                <small id="quality-note" class="field-note" hidden></small>
-              </div>
-              <fieldset id="compression-group" class="field compression-group">
-                <legend class="field-label">圧縮レベル</legend>
-                <div id="compression" class="segmented">
+              <div id="compression-group" class="field compression-group">
+                <div id="compression-label" class="field-label">圧縮レベル</div>
+                <div id="compression" class="segmented" role="radiogroup" aria-labelledby="compression-label">
                   <label><input type="radio" name="compression" value="1" /><span>速い</span></label>
                   <label><input type="radio" name="compression" value="6" checked /><span>標準</span></label>
                   <label><input type="radio" name="compression" value="9" /><span>高圧縮</span></label>
                 </div>
                 <small id="compression-note" class="field-note">可逆形式で使用します</small>
-              </fieldset>
-              <fieldset class="field resolution-group">
-                <legend class="field-label">出力サイズ</legend>
-                <div class="resolution-row">
-                  <label class="dimension"><span>幅</span><input id="width" type="number" inputmode="numeric" min="1" max="16384" placeholder="元のまま" aria-label="出力幅" /><small>px</small></label>
-                  <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="keep-aspect" type="checkbox" checked aria-label="アスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
-                  <label class="dimension"><span>高さ</span><input id="height" type="number" inputmode="numeric" min="1" max="16384" placeholder="元のまま" aria-label="出力高さ" /><small>px</small></label>
-                </div>
-                <small class="field-note">空欄で元のサイズを維持 · 最大 16,384 px</small>
-              </fieldset>
+              </div>
+              <div id="quality-group" class="field quality-group">
+                <div class="field-label-row"><label class="field-label" for="quality">品質</label><output id="quality-value" for="quality">85</output></div>
+                <input id="quality" class="range" type="range" min="1" max="100" value="85" aria-describedby="quality-note" />
+                <div class="range-labels" aria-hidden="true"><span>小さい</span><span>高品質</span></div>
+                <small id="quality-note" class="field-note" hidden></small>
+              </div>
+              <div class="field resolution-group">
+                <div class="field-label-row"><label class="field-label" for="scale-percent">&#20493;&#29575;</label><output id="scale-value" for="scale-percent">100%</output></div>
+                <input id="scale-percent" class="range" type="range" min="1" max="100" step="1" value="100" aria-label="&#20986;&#21147;&#12469;&#12452;&#12474;&#12398;&#20493;&#29575;" aria-describedby="resolution-preview" />
+                <div class="range-labels" aria-hidden="true"><span>1%</span><span>100%</span></div>
+                <small id="resolution-preview" class="field-note">100% &#12399;&#20803;&#12398;&#12469;&#12452;&#12474;&#12391;&#12377;&#12290;</small>
+              </div>
             </div>
             <div class="settings-footer">
               <dl class="summary">

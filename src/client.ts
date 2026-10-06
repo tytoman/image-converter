@@ -40,8 +40,8 @@ const list = $('file-list');
 const listWrap = $('file-list-wrap');
 const dropZone = $('drop-zone');
 const formatGrid = $('output-format');
-const widthInput = $('width') as HTMLInputElement;
-const heightInput = $('height') as HTMLInputElement;
+const scaleInput = $('scale-percent') as HTMLInputElement;
+const scaleValue = $('scale-value');
 const quality = $('quality') as HTMLInputElement;
 const qualityGroup = $('quality-group');
 const qualityValue = $('quality-value');
@@ -58,7 +58,6 @@ let running = false;
 let cancelling = false;
 let taskItem: Item | undefined;
 let resultsOpen = false;
-let lastDimension: 'width' | 'height' = 'width';
 let unique = 0;
 const maxFileBytes = 64 * 1024 * 1024;
 const maxPixels = 40_000_000;
@@ -531,7 +530,30 @@ function selectedCount() {
   return items.reduce((count, item) => count + getFrameIndexes(item).length, 0);
 }
 
+function outputDimensions(meta: Metadata) {
+  const scale = Number(scaleInput.value) / 100;
+  if (!Number.isFinite(scale) || scale <= 0 || !meta.width || !meta.height) return { width: undefined, height: undefined };
+  return { width: Math.max(1, Math.round(meta.width * scale)), height: Math.max(1, Math.round(meta.height * scale)) };
+}
+
+function updateResolutionUI() {
+  const preview = $('resolution-preview');
+  const raw = scaleInput.value.trim();
+  if (!Number.isFinite(Number(raw)) || Number(raw) < 1 || Number(raw) > 500) {
+    preview.textContent = '\u500d\u7387\u306f 1% \u304b\u3089 500% \u306e\u7bc4\u56f2\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002'; return;
+  }
+  scaleValue.textContent = `${scaleInput.value}%`;
+  scaleInput.style.setProperty('--fill', `${((Number(scaleInput.value) - Number(scaleInput.min)) / (Number(scaleInput.max) - Number(scaleInput.min))) * 100}%`);
+  const reference = items.find((item) => item.meta && !item.error)?.meta;
+  if (!reference) { preview.textContent = '\u753b\u50cf\u3092\u8ffd\u52a0\u3059\u308b\u3068\u51fa\u529b\u5bf8\u6cd5\u3092\u8868\u793a\u3057\u307e\u3059\u3002'; return; }
+  const dims = outputDimensions(reference);
+  preview.textContent = dims.width && dims.height && dims.width <= maxDimension && dims.height <= maxDimension && dims.width * dims.height <= maxPixels
+    ? `\u5148\u982d\u306e\u753b\u50cf: ${dims.width.toLocaleString()} \u00d7 ${dims.height.toLocaleString()} px${items.length > 1 ? ' \u00b7 \u5404\u753b\u50cf\u306e\u5143\u30b5\u30a4\u30ba\u3092\u57fa\u6e96\u306b\u8a08\u7b97' : ''}`
+    : '\u51fa\u529b\u5bf8\u6cd5\u304c\u4e0a\u9650\u3092\u8d85\u3048\u3066\u3044\u307e\u3059\u3002\u500d\u7387\u3092\u4e0b\u3052\u3066\u304f\u3060\u3055\u3044\u3002';
+}
+
 function updateControls() {
+  updateResolutionUI();
   const parsing = items.some((item) => item.status === '解析中' || item.status === '解析待ち');
   const ready = items.some(
     (item) => item.meta && !item.error && !invalidFrameSelection(item) && getFrameIndexes(item).length > 0
@@ -545,12 +567,12 @@ function updateControls() {
 
   const lossy = isLossy(output);
   quality.disabled = !lossy || running;
-  qualityGroup.classList.toggle('is-inactive', !lossy);
+  qualityGroup.hidden = !lossy;
 
   const png = output === 'PNG';
   const compInputs = compressionGroup.querySelectorAll<HTMLInputElement>('input[name="compression"]');
   compInputs.forEach((inp) => (inp.disabled = !png || running));
-  compressionGroup.classList.toggle('is-inactive', !png);
+  compressionGroup.hidden = !png;
 
   const formatInputs = formatGrid.querySelectorAll<HTMLInputElement>('input[name="output-format"]');
   formatInputs.forEach((inp) => {
@@ -569,7 +591,7 @@ function updateControls() {
           : output === 'BMP' || output === 'TIFF'
             ? 'この形式では圧縮設定を指定できません'
             : output === 'WEBP'
-              ? '非可逆圧縮 · 品質を指定できます（可逆設定なし）'
+              ? '非可逆圧縮 · 品質を指定できます'
               : lossy
                 ? '非可逆圧縮 · 品質を指定できます'
                 : '可逆圧縮';
@@ -591,11 +613,8 @@ function updateControls() {
     const compVal = currentCompression();
     formatDetail += ` · 圧縮 ${compVal === 1 ? '速い' : compVal === 9 ? '高圧縮' : '標準'}`;
   }
-  const w = widthInput.value.trim();
-  const h = heightInput.value.trim();
-  if (w || h) {
-    formatDetail += ` · ${w || '元'} × ${h || '元'} px`;
-  }
+  const scale = scaleInput.value;
+  if (Number(scale) !== 100) formatDetail += ` ? ${scale}%`;
   $('summary-output').textContent = fileTotalCount ? formatDetail : '—';
 
   const noteEl = $('selection-note');
@@ -681,18 +700,7 @@ function cleanupResults() {
 }
 
 function readOptions(frame: number, meta: Metadata) {
-  let outWidth = Number(widthInput.value) || undefined;
-  let outHeight = Number(heightInput.value) || undefined;
-  if (($('keep-aspect') as HTMLInputElement).checked && meta.width && meta.height) {
-    const scale = Math.min(
-      outWidth ? outWidth / meta.width : Infinity,
-      outHeight ? outHeight / meta.height : Infinity
-    );
-    if (Number.isFinite(scale)) {
-      outWidth = Math.max(1, Math.round(meta.width * scale));
-      outHeight = Math.max(1, Math.round(meta.height * scale));
-    }
-  }
+  const { width: outWidth, height: outHeight } = outputDimensions(meta);
   return {
     format: currentFormat(),
     frame,
@@ -707,17 +715,13 @@ function validateSettings(): string | undefined {
   if (items.some((item) => item.meta && !item.error && invalidFrameSelection(item))) {
     return 'ページ番号は 1 始まりで指定してください（例: 1,3-5）。';
   }
-  const w = widthInput.value.trim() === '' ? undefined : Number(widthInput.value);
-  const h = heightInput.value.trim() === '' ? undefined : Number(heightInput.value);
-  if (
-    [w, h].some(
-      (value) => value !== undefined && (!Number.isInteger(value) || value < 1 || value > maxDimension)
-    )
-  ) {
-    return `出力寸法は 1–${maxDimension.toLocaleString()} px の整数で指定してください。`;
-  }
-  if (w && h && w * h > maxPixels) {
-    return '出力サイズが 40 MP を超えています。';
+  const raw = Number(scaleInput.value);
+  if (!Number.isFinite(raw) || raw < 1 || raw > 500) return '\u500d\u7387\u306f 1% \u304b\u3089 500% \u306e\u7bc4\u56f2\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002';
+  for (const item of items) {
+    if (!item.meta || item.error) continue;
+    const dims = outputDimensions(item.meta);
+    if (dims.width && dims.height && (dims.width > maxDimension || dims.height > maxDimension)) return `出力寸法は最大 ${maxDimension.toLocaleString()} px です。`;
+    if (dims.width && dims.height && dims.width * dims.height > maxPixels) return '出力サイズが 40 MP を超えています。';
   }
   return undefined;
 }
@@ -744,7 +748,7 @@ async function convertAll() {
   renderItems();
   updateControls();
 
-  for (const id of ['preset', 'width', 'height', 'keep-aspect']) ($(id) as HTMLInputElement).disabled = true;
+  for (const id of ['preset', 'scale-percent']) ($(id) as HTMLInputElement).disabled = true;
 
   const queue = items.filter(
     (item) => item.meta && !item.error && !invalidFrameSelection(item) && getFrameIndexes(item).length
@@ -833,7 +837,7 @@ async function convertAll() {
   running = false;
   cancelling = false;
 
-  for (const id of ['preset', 'width', 'height', 'keep-aspect']) ($(id) as HTMLInputElement).disabled = false;
+  for (const id of ['preset', 'width', 'height']) ($(id) as HTMLInputElement).disabled = false;
   $('cancel-convert').hidden = true;
   progressWrap.className = `progress-wrap ${wasCancelled ? '' : 'done'}`;
   $('progress-label').textContent = wasCancelled
@@ -907,57 +911,48 @@ async function downloadZip() {
 }
 
 function applyPreset(value: string) {
+  if (value === 'custom') return;
   if (value === 'web') {
     setFormat('WEBP');
     quality.value = '82';
-    widthInput.value = '';
-    heightInput.value = '';
+    scaleInput.value = '100';
     setCompression(6);
   } else if (value === 'archive') {
     setFormat('PNG');
     quality.value = '100';
-    widthInput.value = '';
-    heightInput.value = '';
+    scaleInput.value = '100';
     setCompression(9);
   } else if (value === 'social') {
     setFormat('JPEG');
     quality.value = '88';
-    widthInput.value = '2048';
-    heightInput.value = '';
+    scaleInput.value = '100';
     setCompression(6);
-  } else if (value === 'custom') {
-    return;
   }
+  updateResolutionUI();
   updateQuality();
   updateControls();
 }
 
 function updateQuality() {
   qualityValue.textContent = quality.value;
+  const value = Number(quality.value);
+  qualityNote.hidden = !isLossy(currentFormat());
+  qualityNote.classList.toggle('quality-warning', value <= 25);
+  qualityNote.textContent = value <= 25
+    ? '画質が大きく低下します。ファイルサイズを優先する設定です'
+    : value <= 49
+      ? 'ファイルサイズを優先します。細部が失われる場合があります'
+      : value <= 74
+        ? '画質とファイルサイズのバランスを取ります'
+        : value <= 89
+          ? '細部を保ちやすい設定です。ファイルサイズは大きくなります'
+          : '高画質設定です。元画像に近い画質で、ファイルサイズは大きくなります';
   const min = Number(quality.min) || 1;
   const max = Number(quality.max) || 100;
   const val = Number(quality.value);
   const fillPct = Math.round(((val - min) / (max - min)) * 100);
   quality.style.setProperty('--fill', `${fillPct}%`);
   updateControls();
-}
-
-function updateAspect(changed: 'width' | 'height') {
-  if (!($('keep-aspect') as HTMLInputElement).checked) return;
-  const reference = items.find((item) => item.meta && !item.error)?.meta;
-  if (!reference?.width || !reference.height) return;
-  const source = changed === 'width' ? widthInput : heightInput;
-  const target = changed === 'width' ? heightInput : widthInput;
-  const value = Number(source.value);
-  if (!value) {
-    target.value = '';
-    return;
-  }
-  const result =
-    changed === 'width'
-      ? Math.round((value * reference.height) / reference.width)
-      : Math.round((value * reference.width) / reference.height);
-  target.value = String(Math.max(1, result));
 }
 
 function openFilePicker() {
@@ -1078,12 +1073,6 @@ $('browse-inline').addEventListener('click', (event) => {
   openFilePicker();
 });
 dropZone.addEventListener('click', openFilePicker);
-dropZone.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    openFilePicker();
-  }
-});
 input.addEventListener('change', () => {
   if (input.files) void addFiles(input.files);
   input.value = '';
@@ -1104,20 +1093,9 @@ document.querySelectorAll<HTMLInputElement>('input[name="compression"]').forEach
   });
 });
 
-widthInput.addEventListener('input', () => {
-  lastDimension = 'width';
-  updateAspect('width');
+scaleInput.addEventListener('input', () => {
   ($('preset') as HTMLSelectElement).value = 'custom';
   updateControls();
-});
-heightInput.addEventListener('input', () => {
-  lastDimension = 'height';
-  updateAspect('height');
-  ($('preset') as HTMLSelectElement).value = 'custom';
-  updateControls();
-});
-$('keep-aspect').addEventListener('change', () => {
-  if (($('keep-aspect') as HTMLInputElement).checked) updateAspect(lastDimension);
 });
 
 $('theme-toggle').addEventListener('click', () => {
