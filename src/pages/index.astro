@@ -1,7 +1,7 @@
 ---
 import { icon } from '../icons';
 
-const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP', 'PSD'];
+const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC', 'TIFF/TIF', 'BMP', 'CR2', 'NEF', 'ARW', 'PSD', 'AI', 'PDF', 'DICOM/DCM'];
 ---
 <!doctype html>
 <html lang="ja">
@@ -50,7 +50,7 @@ const inputFormats = ['PNG', 'JPEG', 'WebP', 'GIF', 'AVIF', 'HEIC', 'TIFF', 'BMP
                 <strong>画像をここにドロップ</strong>
                 <span>または <button id="browse-inline" class="text-button" type="button">ファイルを選択</button><span class="shortcut-sep" aria-hidden="true">·</span><span class="shortcut" aria-label="ショートカット Ctrl O"><kbd data-mod>Ctrl</kbd><kbd>O</kbd></span></span>
               </div>
-              <p class="drop-formats">{inputFormats.join(', ')} ほか</p>
+              <p class="drop-formats">{inputFormats.join(', ')}</p>
             </div>
 
             <div id="file-list-wrap" class="file-list-wrap" hidden>
