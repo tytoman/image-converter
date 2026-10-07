@@ -1,6 +1,9 @@
 // UI icon set. 24px grid, stroke-based; the stroke width is applied in CSS (non-scaling) so every size stays crisp.
 const paths = {
   plus: '<path d="M12 5v14M5 12h14"/>',
+  horizontal: '<path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/>',
+  vertical: '<path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4"/>',
+  scale: '<path d="M5 19 19 5M5 13v6h6M13 5h6v6"/>',
   x: '<path d="M7 7l10 10M17 7 7 17"/>',
   trash: '<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12.2a1.5 1.5 0 0 0 1.5 1.3h6.4a1.5 1.5 0 0 0 1.5-1.3L17.5 7M10 11v6M14 11v6"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
