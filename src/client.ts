@@ -47,7 +47,6 @@ const qualityGroup = $('quality-group');
 const qualityValue = $('quality-value');
 const qualityNote = $('quality-note');
 const compressionGroup = $('compression-group');
-const compressionNote = $('compression-note');
 const items: Item[] = [];
 const results: Result[] = [];
 const pending = new Map<number, { resolve: (value: any) => void; reject: (reason: Error) => void }>();
