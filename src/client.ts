@@ -154,9 +154,9 @@ function fileSize(size: number) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function imageMetadata(format: string, width: number | undefined, height: number | undefined, size: number) {
+function imageMetadata(format: string, width: number | undefined, height: number | undefined, size: number, delta = '') {
   const dimensions = width && height ? `${width.toLocaleString()} × ${height.toLocaleString()} px` : '—';
-  return `<dl class="image-metadata"><dt>形式</dt><dd><span class="fmt">${escapeHtml(format)}</span></dd><dt>寸法</dt><dd>${dimensions}</dd><dt>容量</dt><dd>${fileSize(size)}</dd></dl>`;
+  return `<dl class="image-metadata"><dt>形式</dt><dd><span class="fmt">${escapeHtml(format)}</span></dd><dt>寸法</dt><dd>${dimensions}</dd><dt>容量</dt><dd class="metadata-size"><span>${fileSize(size)}</span>${delta}</dd></dl>`;
 }
 
 function validScale(value: number) {
@@ -429,14 +429,14 @@ function renderItems() {
         : `<div class="thumb empty">${icon('image', 14)}</div>`;
 
       row.innerHTML = `
-        <div class="file-name input-image">
-          ${thumbHtml}
+        <div class="input-image">
           <span class="file-name-text" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</span>
-        </div>
-        <div class="input-info image-info">
-          ${imageMetadata(badge, item.meta?.width, item.meta?.height, item.file.size)}
-          ${multiple ? `<span class="result-meta">${frameWord(count)}</span>` : ''}
-          <div class="frame-control ${multiple ? '' : 'single'}"></div>
+          ${thumbHtml}
+          <div class="input-info image-info">
+            ${imageMetadata(badge, item.meta?.width, item.meta?.height, item.file.size)}
+            ${multiple ? `<span class="result-meta">${frameWord(count)}</span>` : ''}
+            <div class="frame-control ${multiple ? '' : 'single'}"></div>
+          </div>
         </div>
         <div class="item-settings">
           <div class="resolution-row">
@@ -448,7 +448,6 @@ function renderItems() {
           <span class="status ${statusClass}" title="${escapeHtml(item.error || '')}">${statusIcon}<span>${escapeHtml(displayedStatus)}</span></span>
         </div>
         <div class="output-images"></div>
-        <div class="output-info image-info"></div>
         <button type="button" class="icon-button remove-file" aria-label="${escapeHtml(item.file.name)} を削除" data-tooltip="削除" ${running ? 'disabled' : ''}>
           ${icon('x', 14)}
         </button>
@@ -696,19 +695,15 @@ function updateControls() {
 function renderItemOutput(row: HTMLElement, item: Item) {
   const outputs = results.filter((result) => result.sourceId === item.id);
   const images = row.querySelector<HTMLElement>('.output-images')!;
-  const info = row.querySelector<HTMLElement>('.output-info')!;
   images.replaceChildren();
-  info.replaceChildren();
   if (!outputs.length) {
     images.innerHTML = `<span class="output-placeholder">${icon('image', 16)}<span>${item.status === '変換中' ? '変換中…' : item.status === 'キャンセル' ? 'キャンセルしました' : '変換後に表示'}</span></span>`;
-    info.textContent = '—';
     return;
   }
   for (const result of outputs) {
     const image = document.createElement('div');
     image.className = 'output-image';
-    image.innerHTML = `${result.thumbUrl ? `<div class="thumb"><img src="${result.thumbUrl}" alt="" loading="lazy" /></div>` : `<div class="thumb empty">${icon('image', 14)}</div>`}<span class="result-file" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>`;
-    images.append(image);
+    image.innerHTML = `<span class="result-file" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>${result.thumbUrl ? `<div class="thumb"><img src="${result.thumbUrl}" alt="" loading="lazy" /></div>` : `<div class="thumb empty">${icon('image', 14)}</div>`}`;
     const detail = document.createElement('div');
     detail.className = 'output-detail';
     if (result.error) {
@@ -717,9 +712,18 @@ function renderItemOutput(row: HTMLElement, item: Item) {
       const diff = result.origSize ? (result.blob.size - result.origSize) / result.origSize : 0;
       const pct = Math.round(Math.abs(diff) * 100);
       const delta = result.origSize ? `<span class="delta ${diff < -0.01 ? 'down' : diff > 0.01 ? 'up' : 'same'}">${diff < -0.01 ? '-' : diff > 0.01 ? '+' : '±'}${pct}%</span>` : '';
-      detail.innerHTML = `${imageMetadata(result.format, result.width, result.height, result.blob.size)}<div class="output-actions">${delta}<a class="button subtle download" href="${result.url}" download="${escapeHtml(result.name)}" data-tooltip="個別保存">${icon('download', 14)}保存</a></div>`;
+      detail.innerHTML = imageMetadata(result.format, result.width, result.height, result.blob.size, delta);
+      const save = document.createElement('a');
+      save.className = 'button subtle download';
+      save.href = result.url;
+      save.download = result.name;
+      save.dataset.tooltip = '個別保存';
+      save.setAttribute('aria-label', `${result.name} を保存`);
+      save.innerHTML = `${icon('download', 14)}保存`;
+      image.append(save);
     }
-    info.append(detail);
+    image.insertBefore(detail, image.querySelector('.download'));
+    images.append(image);
   }
 }
 

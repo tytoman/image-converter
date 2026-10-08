@@ -518,10 +518,16 @@
   .app-footer { max-width: none; padding: 0 var(--space-16) var(--space-12); }
 
   /* File row: 入力 → 倍率 → 出力 の流れを 1 行で読めるよう横並びに整理 */
-  .list-head, .file-row { min-width: 800px; grid-template-columns: minmax(120px, 1fr) minmax(152px, 1fr) 152px minmax(120px, 1fr) minmax(152px, 1fr) 24px; column-gap: var(--space-12); }
+  .list-head, .file-row { min-width: 800px; grid-template-columns: minmax(240px, 1fr) 152px minmax(280px, 1fr) 24px; column-gap: var(--space-12); }
   .list-head { position: sticky; top: 0; z-index: 1; padding: 0 var(--space-8) 0 var(--space-12); background: var(--surface-default); }
   .file-row { min-height: 0; align-items: start; padding: var(--space-12) var(--space-8) var(--space-12) var(--space-12); }
-  .input-image, .output-image { flex-direction: column; align-items: flex-start; gap: var(--space-6); min-height: 112px; }
+  .input-image, .output-image { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: start; gap: var(--space-6) var(--space-8); min-width: 0; min-height: 0; }
+  .input-image .file-name-text, .output-image .result-file { grid-column: 1 / -1; grid-row: 1; }
+  .output-image { grid-template-columns: 64px minmax(0, 1fr) auto; }
+  .output-image > .thumb { grid-column: 1; grid-row: 2; }
+  .output-image > .output-detail { grid-column: 2; grid-row: 2; }
+  .output-image > .download { grid-column: 3; grid-row: 2; justify-self: end; align-self: center; }
+  .input-image .frame-control { flex-wrap: wrap; max-width: 100%; }
   .input-image .thumb, .output-image .thumb { width: 64px; height: 64px; }
   .file-name-text, .result-file { display: block; width: 100%; min-width: 0; overflow: hidden; color: var(--text-default); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
   .image-info { gap: var(--space-4); }
@@ -529,9 +535,7 @@
   .item-settings { gap: var(--space-4); padding: 0; border-inline: 0; }
   .item-settings .result-meta { color: var(--text-hidden); }
   .output-images { gap: var(--space-8); }
-  /* 複数フレーム時も入力・出力の各行の高さを揃える */
-  .output-info { display: flex; flex-direction: column; gap: var(--space-8); color: var(--text-hidden); font-size: var(--text-xs); }
-  .output-detail { min-height: 112px; flex-direction: column; align-items: flex-start; gap: var(--space-8); }
+  .output-detail { min-width: 0; min-height: 0; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
   .output-detail .result-size { justify-content: flex-start; }
   .output-detail .download { margin-left: 0; }
   .output-placeholder { min-height: 112px; }
@@ -539,6 +543,7 @@
   .image-metadata { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-6) var(--space-8); width: 100%; margin: 0; font-size: var(--text-xs); line-height: 16px; }
   .image-metadata dt { color: var(--text-muted); }
   .image-metadata dd { min-width: 0; margin: 0; color: var(--text-default); font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .image-metadata .metadata-size { display: flex; align-items: center; gap: var(--space-6); white-space: nowrap; }
   .output-actions { display: flex; align-items: center; gap: var(--space-8); }
   .resolution-row { grid-template-columns: 80px auto; grid-template-rows: repeat(2, auto); width: fit-content; max-width: 100%; }
   .resolution-row > .dimension:first-child { grid-column: 1; grid-row: 1; }
