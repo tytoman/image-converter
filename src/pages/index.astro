@@ -1,5 +1,8 @@
 ---
 import { icon } from "../icons";
+import { conversions } from "../data/conversions";
+
+const canonical = Astro.site ? new URL("/", Astro.site).href : undefined;
 
 const inputFormats = [
     "PNG",
@@ -48,8 +51,17 @@ const inputFormats = [
         <title>画像変換 — ローカルで安全に変換</title>
         <meta
             name="description"
-            content="画像をブラウザー内で変換。ファイルは端末の外へ送信されません。"
+            content="JPG・PNG・WebP・HEICなどの画像を無料で変換。ファイルはサーバーへ送信せず、ブラウザ内で安全に処理します。"
         />
+        {canonical && <link rel="canonical" href={canonical} />}
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="ja_JP" />
+        <meta property="og:title" content="画像変換 — ローカルで安全に変換" />
+        <meta
+            property="og:description"
+            content="画像をブラウザ内で変換。ファイルはサーバーへ送信されません。PNG、JPG、WebPなどに対応。"
+        />
+        {canonical && <meta property="og:url" content={canonical} />}
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     </head>
     <body>
@@ -175,7 +187,7 @@ const inputFormats = [
 
                         <div id="file-list-wrap" class="file-list-wrap" hidden>
                             <div class="list-head">
-                                <span>入力</span>
+                                <span class="column-heading"><span>入力</span></span>
                                 <span class="column-heading">
                                     <span>サイズ</span>
                                     <button
@@ -196,7 +208,7 @@ const inputFormats = [
                                         />
                                     </button>
                                 </span>
-                                <span>出力</span>
+                                <span class="column-heading"><span>出力</span></span>
                                 <span aria-hidden="true"></span>
                             </div>
                             <div
@@ -496,44 +508,68 @@ const inputFormats = [
             </main>
 
             <footer class="app-footer">
-                <span>
-                    <Fragment set:html={icon("lock", 12)} />
-                    画像変換はローカルの WebAssembly エンジンで実行されます。
-                </span>
-                <ul class="shortcut-list" aria-label="キーボードショートカット">
-                    <li>
-                        <span class="shortcut">
-                            <kbd data-mod>Ctrl</kbd>
-                            <kbd>O</kbd>
-                        </span>
-                        ファイル追加
-                    </li>
-                    <li>
-                        <span class="shortcut">
-                            <kbd data-mod>Ctrl</kbd>
-                            <kbd>↵</kbd>
-                        </span>
-                        変換
-                    </li>
-                    <li>
-                        <span class="shortcut">
-                            <kbd data-mod>Ctrl</kbd>
-                            <kbd>S</kbd>
-                        </span>
-                        ZIP 保存
-                    </li>
-                    <li>
-                        <span class="shortcut">
-                            <kbd>Esc</kbd>
-                        </span>
-                        キャンセル
-                    </li>
-                </ul>
-                <nav class="legal-links" aria-label="ソースコードとライセンス">
-                    <a href="https://github.com/tytoman/image-converter">
-                        ソースコード
-                    </a>
-                    <a href="/licenses/">ライセンス・謝辞</a>
+                <div class="app-footer-main">
+                    <span>
+                        <Fragment set:html={icon("lock", 12)} />
+                        画像変換はローカルの WebAssembly
+                        エンジンで実行されます。
+                    </span>
+                    <ul
+                        class="shortcut-list"
+                        aria-label="キーボードショートカット"
+                    >
+                        <li>
+                            <span class="shortcut">
+                                <kbd data-mod>Ctrl</kbd>
+                                <kbd>O</kbd>
+                            </span>
+                            ファイル追加
+                        </li>
+                        <li>
+                            <span class="shortcut">
+                                <kbd data-mod>Ctrl</kbd>
+                                <kbd>↵</kbd>
+                            </span>
+                            変換
+                        </li>
+                        <li>
+                            <span class="shortcut">
+                                <kbd data-mod>Ctrl</kbd>
+                                <kbd>S</kbd>
+                            </span>
+                            ZIP 保存
+                        </li>
+                        <li>
+                            <span class="shortcut">
+                                <kbd>Esc</kbd>
+                            </span>
+                            キャンセル
+                        </li>
+                    </ul>
+                    <nav
+                        class="legal-links"
+                        aria-label="ソースコードとライセンス"
+                    >
+                        <a href="https://github.com/tytoman/image-converter">
+                            ソースコード
+                        </a>
+                        <a href="/licenses/">ライセンス・謝辞</a>
+                    </nav>
+                </div>
+                <nav class="seo-tools" aria-labelledby="seo-tools-title">
+                    <h2 id="seo-tools-title">画像形式を変換</h2>
+                    <p>
+                        ファイルをサーバーへ送信せず、ブラウザ内で変換できます。形式ごとの手順と注意点はこちら。
+                    </p>
+                    <ul>
+                        {conversions.map((item) => (
+                            <li>
+                                <a href={`/convert/${item.slug}/`}>
+                                    {item.title}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
                 </nav>
             </footer>
         </div>

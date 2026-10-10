@@ -3,6 +3,7 @@ import "../styles.css";
 import { icon } from "../icons";
 
 const repository = "https://github.com/tytoman/image-converter";
+const canonical = Astro.site ? new URL("/licenses/", Astro.site).href : undefined;
 ---
 
 <!doctype html>
@@ -16,6 +17,12 @@ const repository = "https://github.com/tytoman/image-converter";
             name="description"
             content="画像変換と同梱ソフトウェアのライセンス情報、ソースコードへの案内。"
         />
+        {canonical && <link rel="canonical" href={canonical} />}
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="ja_JP" />
+        <meta property="og:title" content="ライセンス・謝辞 — 画像変換" />
+        <meta property="og:description" content="画像変換と同梱ソフトウェアのライセンス情報、ソースコードへの案内。" />
+        {canonical && <meta property="og:url" content={canonical} />}
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     </head>
     <body>
@@ -102,9 +109,11 @@ const repository = "https://github.com/tytoman/image-converter";
                     </p>
                 </section>
             </main>
-            <footer class="app-footer legal-footer">
-                <a href="/">画像変換に戻る</a>
-                <a href={repository}>ソースコード</a>
+            <footer class="app-footer">
+                <nav class="legal-links" aria-label="サイト情報">
+                    <a href={repository}>ソースコード</a>
+                    <a href="/">画像変換に戻る</a>
+                </nav>
             </footer>
         </div>
         <script>
@@ -171,23 +180,16 @@ const repository = "https://github.com/tytoman/image-converter";
         color: var(--text-muted);
         line-height: 1.7;
     }
-    .legal-page a,
-    .legal-footer a {
+    .legal-page a {
         color: var(--text-default);
         text-underline-offset: 3px;
     }
     .legal-page li + li {
         margin-top: 6px;
     }
-    .legal-footer {
-        justify-content: flex-start;
-    }
     @media (max-width: 720px) {
         .legal-page {
             padding: 16px;
-        }
-        .app-footer.legal-footer {
-            flex-direction: row;
         }
     }
 </style>

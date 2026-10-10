@@ -231,6 +231,8 @@ function currentCompression(): number {
 function renderFormats() {
   const supported = (capabilities?.outputs || []).map(normalizedFormat).filter((x): x is Format => Boolean(x));
   const all: Format[] = ['PNG', 'JPEG', 'WEBP', 'AVIF', 'HEIF', 'HEIC', 'TIFF', 'GIF', 'BMP', 'JXL', 'TGA'];
+  const requestedFormat = normalizedFormat(new URLSearchParams(location.search).get('output') || '');
+  const initialFormat = requestedFormat && supported.includes(requestedFormat) ? requestedFormat : 'PNG';
 
   formatGrid.replaceChildren(
     ...all.map((format) => {
@@ -244,7 +246,7 @@ function renderFormats() {
       input.name = 'output-format';
       input.value = format;
       input.disabled = !isSup;
-      if (format === 'PNG' && isSup) input.checked = true;
+      if (format === initialFormat && isSup) input.checked = true;
 
       input.addEventListener('change', () => {
         updateControls();
