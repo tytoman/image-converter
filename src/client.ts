@@ -170,7 +170,7 @@ function imageMetadata(format: string, width: number | undefined, height: number
 }
 
 function validScale(value: number, unit: '%' | 'px' = '%') {
-  return Number.isFinite(value) && value >= 1 && value <= (unit === 'px' ? maxDimension : 500) && (unit !== 'px' || Number.isInteger(value));
+  return Number.isFinite(value) && value >= 1 && value <= (unit === 'px' ? maxDimension : 1000) && (unit !== 'px' || Number.isInteger(value));
 }
 function scaleToPixels(meta: Metadata, x: number, y: number, unit: '%' | 'px') {
   if (!validScale(x, unit) || !validScale(y, unit) || !meta.width || !meta.height) return { width: undefined, height: undefined };
@@ -460,9 +460,9 @@ function renderItems() {
         </div>
         <div class="item-settings">
           <div class="resolution-row">
-            <div class="dimension"><span>横</span><input class="item-scale-x" aria-label="${escapeHtml(item.file.name)} の横${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 500}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleX}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit" aria-label="${escapeHtml(item.file.name)} の横単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
+            <div class="dimension"><span>横</span><input class="item-scale-x" aria-label="${escapeHtml(item.file.name)} の横${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 1000}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleX}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit" aria-label="${escapeHtml(item.file.name)} の横単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
             <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input class="item-scale-lock" type="checkbox" ${item.scaleLocked ? 'checked' : ''} ${running ? 'disabled' : ''} aria-label="${escapeHtml(item.file.name)} のアスペクト比を維持" />${icon('link', 14, 'icon-link')}${icon('unlink', 14, 'icon-unlink')}</label>
-            <div class="dimension"><span>縦</span><input class="item-scale-y" aria-label="${escapeHtml(item.file.name)} の縦${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 500}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleY}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit-peer" aria-label="${escapeHtml(item.file.name)} の縦単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
+            <div class="dimension"><span>縦</span><input class="item-scale-y" aria-label="${escapeHtml(item.file.name)} の縦${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 1000}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleY}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit-peer" aria-label="${escapeHtml(item.file.name)} の縦単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
           </div>
           <span class="item-dimensions result-meta"></span>
         </div>
@@ -636,15 +636,15 @@ function updateResolutionUI() {
   scaleLock.checked = draftGlobalScale.locked;
   globalScaleAnchor = draftGlobalScale.anchor;
   $('scale-heading').setAttribute('data-tooltip', unit === 'px' ? '\u5bf8\u6cd5\uff08\u5168\u753b\u50cf\uff09' : '\u500d\u7387\uff08\u5168\u753b\u50cf\uff09');
-  scaleXInput.max = scaleYInput.max = String(unit === 'px' ? maxDimension : 500);
+  scaleXInput.max = scaleYInput.max = String(unit === 'px' ? maxDimension : 1000);
   scaleXInput.step = scaleYInput.step = unit === 'px' ? '1' : 'any';
   const peer = document.querySelector<HTMLSelectElement>('.scale-unit-peer'); if (peer) peer.value = unit;
-  $('scale-unit-note').textContent = !items.length && unit === 'px' ? '\u753b\u50cf\u8ffd\u52a0\u524d\u306f\u6a2a\u30fb\u7e261024 px\u304b\u3089\u8a2d\u5b9a\u3067\u304d\u307e\u3059\u3002' : unit === 'px' ? '1\u301c' + maxDimension.toLocaleString() + ' px \u00b7 \u30ed\u30c3\u30af\u4e2d\u306f\u5143\u306e\u7e26\u6a2a\u6bd4\u3092\u7dad\u6301' : '1\u301c500% \u00b7 \u30ed\u30c3\u30af\u4e2d\u306f\u5143\u306e\u7e26\u6a2a\u6bd4\u3092\u7dad\u6301';
+  $('scale-unit-note').textContent = !items.length && unit === 'px' ? '\u753b\u50cf\u8ffd\u52a0\u524d\u306f\u6a2a\u30fb\u7e261024 px\u304b\u3089\u8a2d\u5b9a\u3067\u304d\u307e\u3059\u3002' : unit === 'px' ? '1\u301c' + maxDimension.toLocaleString() + ' px \u00b7 \u30ed\u30c3\u30af\u4e2d\u306f\u5143\u306e\u7e26\u6a2a\u6bd4\u3092\u7dad\u6301' : '1\u301c1000% \u00b7 \u30ed\u30c3\u30af\u4e2d\u306f\u5143\u306e\u7e26\u6a2a\u6bd4\u3092\u7dad\u6301';
   scaleXInput.setAttribute('aria-label', '\u5168\u753b\u50cf\u306e\u6a2a\u306e' + (unit === 'px' ? '\u5bf8\u6cd5' : '\u500d\u7387'));
   scaleYInput.setAttribute('aria-label', '\u5168\u753b\u50cf\u306e\u7e26\u306e' + (unit === 'px' ? '\u5bf8\u6cd5' : '\u500d\u7387'));
   const x = scaleXInput.valueAsNumber; const y = scaleYInput.valueAsNumber;
   scaleXInput.setAttribute('aria-invalid', String(!validScale(x, unit))); scaleYInput.setAttribute('aria-invalid', String(!validScale(y, unit)));
-  if (!validScale(x, unit) || !validScale(y, unit)) { preview.textContent = unit === 'px' ? '\u5bf8\u6cd5\u306f1\u301c' + maxDimension.toLocaleString() + ' px\u306e\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002' : '\u500d\u7387\u306f1\u301c500%\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002'; return; }
+  if (!validScale(x, unit) || !validScale(y, unit)) { preview.textContent = unit === 'px' ? '\u5bf8\u6cd5\u306f1\u301c' + maxDimension.toLocaleString() + ' px\u306e\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002' : '\u500d\u7387\u306f1\u301c1000%\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002'; return; }
   const referenceItem = items.find((item) => item.meta && !item.error); const meta = referenceItem?.meta;
   if (!meta) { preview.textContent = '\u753b\u50cf\u3092\u8ffd\u52a0\u3059\u308b\u3068\u51fa\u529b\u5bf8\u6cd5\u3092\u8868\u793a\u3057\u307e\u3059\u3002'; return; }
   let previewX = x; let previewY = y;
@@ -656,7 +656,7 @@ function updateResolutionUI() {
 
 function getGlobalScaleCandidates(): { candidates?: Map<Item, GlobalScale>; error?: string } {
   const x = scaleXInput.valueAsNumber; const y = scaleYInput.valueAsNumber; const unit = draftGlobalScale.unit;
-  if (!validScale(x, unit) || !validScale(y, unit)) return { error: unit === 'px' ? '\u5bf8\u6cd5\u306f1\u301c' + maxDimension.toLocaleString() + ' px\u306e\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002' : '\u500d\u7387\u306f1\u301c500%\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002' };
+  if (!validScale(x, unit) || !validScale(y, unit)) return { error: unit === 'px' ? '\u5bf8\u6cd5\u306f1\u301c' + maxDimension.toLocaleString() + ' px\u306e\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002' : '\u500d\u7387\u306f1\u301c1000%\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002' };
   const candidates = new Map<Item, GlobalScale>();
   for (const item of items) {
     let nextX = x; let nextY = y;

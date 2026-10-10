@@ -59,11 +59,11 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
               <div class="global-size-panel resolution-group" id="global-size-panel" hidden role="region" aria-labelledby="scale-heading">
                 <div id="scale-heading" class="field-label scale-heading" data-tooltip="全画像のサイズ"><span>全画像のサイズ</span></div>
                 <div class="resolution-row">
-                  <div class="dimension" data-tooltip="横の出力寸法"><span>横</span><input id="scale-x" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の横の倍率" aria-describedby="resolution-preview" /><select id="scale-unit" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
+                  <div class="dimension" data-tooltip="横の出力寸法"><span>横</span><input id="scale-x" type="number" min="1" max="1000" step="any" value="100" aria-label="全画像の横の倍率" aria-describedby="resolution-preview" /><select id="scale-unit" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
                   <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="scale-lock" type="checkbox" checked aria-label="全画像のアスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
-                  <div class="dimension" data-tooltip="縦の出力寸法"><span>縦</span><input id="scale-y" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の縦の倍率" aria-describedby="resolution-preview" /><select class="scale-unit-peer" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
+                  <div class="dimension" data-tooltip="縦の出力寸法"><span>縦</span><input id="scale-y" type="number" min="1" max="1000" step="any" value="100" aria-label="全画像の縦の倍率" aria-describedby="resolution-preview" /><select class="scale-unit-peer" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
                 </div>
-                <small id="scale-unit-note" class="field-note">1〜500% · ロック中は元の縦横比を維持</small>
+                <small id="scale-unit-note" class="field-note">1〜1000% · ロック中は元の縦横比を維持</small>
                 <small id="resolution-preview" class="field-note">100% は元のサイズです。</small>
                 <button id="global-size-apply" class="button outlined" type="button">適用</button>
               </div>
