@@ -1,0 +1,92 @@
+---
+import "../../styles.css";
+import { conversions } from "../../data/conversions";
+import { icon } from "../../icons";
+
+export function getStaticPaths() {
+    return conversions.map((page) => ({ params: { slug: page.slug }, props: { page } }));
+}
+
+const { page } = Astro.props;
+const canonical = Astro.site ? new URL(`/convert/${page.slug}/`, Astro.site).href : undefined;
+const output = page.to === "JPG" ? "JPEG" : page.to;
+const related = conversions.filter((item) => item.slug !== page.slug && (item.from === page.from || item.to === page.to)).slice(0, 6);
+---
+
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <title>{`${page.title}｜無料・ブラウザ内で画像変換`}</title>
+        <meta name="description" content={`${page.summary} ファイルはサーバーに送信せず、ブラウザ内で変換できます。`} />
+        {canonical && <link rel="canonical" href={canonical} />}
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="ja_JP" />
+        <meta property="og:title" content={`${page.title}｜画像変換`} />
+        <meta property="og:description" content={page.summary} />
+        {canonical && <meta property="og:url" content={canonical} />}
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    </head>
+    <body>
+        <div class="app">
+            <header class="titlebar">
+                <a class="brand" href="/" aria-label="画像変換 ホーム">
+                    <Fragment set:html={icon("image", 16)} />
+                    <span class="brand-name">画像変換</span>
+                </a>
+                <div class="titlebar-end">
+                    <a class="button subtle" href="/">アプリに戻る</a>
+                    <span class="titlebar-divider" aria-hidden="true"></span>
+                    <button id="theme-toggle" class="icon-button" type="button" aria-label="テーマを切り替え" data-tooltip="テーマを切り替え">
+                        <Fragment set:html={icon("moon", 16, "theme-icon-moon")} />
+                        <Fragment set:html={icon("sun", 16, "theme-icon-sun")} />
+                    </button>
+                </div>
+            </header>
+            <main class="seo-page">
+                <article>
+                    <h1>{page.title}</h1>
+                    <p class="seo-lead">{page.summary} 画像ファイルは端末内のブラウザで処理され、サーバーへ送信されません。</p>
+                    <a class="button primary seo-cta" href={`/?output=${output}#drop-zone`}>変換ツールを開く</a>
+                    <section>
+                        <h2>{page.from}から{page.to}へ変換する手順</h2>
+                        <ol>
+                            <li>「変換ツールを開く」ボタンから画像変換ツールへ移動します。</li>
+                            <li>{page.from}ファイルを追加します。ファイルはブラウザ内で読み込まれます。</li>
+                            <li>出力形式が{page.to}になっていることを確認し、「変換する」を押して保存します。</li>
+                        </ol>
+                    </section>
+                    <section>
+                        <h2>変換時の注意点</h2>
+                        <p>{page.note}</p>
+                        <p>ファイル形式や内容によっては読み込めない場合があります。入力形式の対応範囲と制限は<a href="https://github.com/tytoman/image-converter/blob/main/docs/SUPPORT.md">対応形式と制限</a>をご確認ください。</p>
+                    </section>
+                    <section>
+                        <h2>ほかの画像形式を変換</h2>
+                        <ul class="seo-related">
+                            {related.map((item) => <li><a href={`/convert/${item.slug}/`}>{item.title}</a></li>)}
+                        </ul>
+                    </section>
+                </article>
+            </main>
+            <footer class="app-footer"><nav class="legal-links" aria-label="サイト情報"><a href="https://github.com/tytoman/image-converter">ソースコード</a><a href="/licenses/">ライセンス・謝辞</a></nav></footer>
+        </div>
+        <script>
+            const toggle = document.getElementById("theme-toggle");
+            const root = document.documentElement;
+            const applyTheme = (theme: string | null) => {
+                if (theme === "light" || theme === "dark") root.setAttribute("data-theme", theme);
+                else root.removeAttribute("data-theme");
+            };
+            try { applyTheme(localStorage.getItem("image-converter-theme")); } catch { applyTheme(null); }
+            toggle?.addEventListener("click", () => {
+                const current = root.getAttribute("data-theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+                const next = current === "dark" ? "light" : "dark";
+                applyTheme(next);
+                try { localStorage.setItem("image-converter-theme", next); } catch { /* Storage may be unavailable. */ }
+            });
+        </script>
+    </body>
+</html>
