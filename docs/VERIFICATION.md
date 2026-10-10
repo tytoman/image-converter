@@ -1,5 +1,20 @@
 # 検証結果
 
+## 2026-10-10 追加形式
+
+SVG・EXR・HDR 入力と、JXL・TGA 入出力を追加しました。
+
+- `cargo test --locked --lib`: 14件成功。JXL の色・透過の可逆往復、TGA の RGBA 往復、SVG の外部画像参照の省略を含みます。
+- `npm.cmd exec tsc -- --noEmit`: 成功。
+- `node scripts/verify-added-formats.mjs`: 実際の同梱 Wasm を Node.js 上で実行し、追加5形式の解析と PNG・JXL・TGA へのサイズ変更変換を確認しました。JXL の色・透過保持、EXR・HDR の線形 RGB から sRGB への画素変換、入力専用形式への出力拒否、1px JXL 出力・過大 SVG・破損 JXL の拒否も確認しました。
+- ビルドと独立したコードレビューを実施しました。追加形式についてブラウザー操作による検証や、大きな画像・各形式の全バリエーションの網羅は行っていません。
+
+JXL 出力は幅・高さがともに2px以上必要です。SVG のフォントや埋め込み画像、EXR のレイヤー、JXL の色空間の制約は [SUPPORT.md](SUPPORT.md) を参照してください。
+
+最適化済み Wasm の SHA-256: `2E370AADEB80B925E0F812BB3B6AA4453DE14443D7D49E367D502C831927EAC0`。`public/wasm` と `dist/wasm` を更新しました。
+
+## 2026-10-05 既存形式
+
 2026-10-05 に Windows の Microsoft Edge（ヘッドレス）とローカル HTTP 配信で検証しました。
 
 | 検証 | 結果 |

@@ -1,5 +1,6 @@
 mod extra;
 mod heif_items;
+mod modern;
 
 use image::{
     codecs, AnimationDecoder, DynamicImage, ExtendedColorType, ImageEncoder, ImageFormat,
@@ -29,6 +30,11 @@ enum InputKind {
     Dicom,
     Pdf,
     Ai,
+    Svg,
+    Jxl,
+    Exr,
+    Hdr,
+    Tga,
 }
 #[derive(Deserialize, Default)]
 struct ConvertOptions {
@@ -64,6 +70,7 @@ fn output_format(ext: &str) -> Option<ImageFormat> {
         "tif" | "tiff" => Some(ImageFormat::Tiff),
         "gif" => Some(ImageFormat::Gif),
         "avif" => Some(ImageFormat::Avif),
+        "tga" => Some(ImageFormat::Tga),
         _ => None,
     }
 }
@@ -74,6 +81,11 @@ fn input_kind(bytes: &[u8], filename: &str) -> Result<InputKind, String> {
     let ext = lower_ext(filename);
     // Use the explicit RAW extension before generic TIFF sniffing (CR2 is TIFF-based).
     match ext.as_str() {
+        "svg" => return Ok(InputKind::Svg),
+        "jxl" => return Ok(InputKind::Jxl),
+        "exr" => return Ok(InputKind::Exr),
+        "hdr" | "pic" => return Ok(InputKind::Hdr),
+        "tga" => return Ok(InputKind::Tga),
         "cr2" | "nef" | "arw" => return Ok(InputKind::Raw),
         "psd" => return Ok(InputKind::Psd),
         "heic" | "heif" => return Ok(InputKind::Heif),
@@ -83,6 +95,7 @@ fn input_kind(bytes: &[u8], filename: &str) -> Result<InputKind, String> {
         "ai" => return Ok(InputKind::Ai),
         _ => {}
     }
+    if bytes.starts_with(b"\xff\x0a") || (bytes.len() >= 12 && &bytes[4..12] == b"JXL \r\n\x87\n") { return Ok(InputKind::Jxl); }
     let fmt = match image::guess_format(bytes) {
         Ok(fmt) => fmt,
         Err(_) => output_format(&ext).ok_or_else(|| format!("未対応の形式です（.{}）。", ext))?,
@@ -95,6 +108,9 @@ fn input_kind(bytes: &[u8], filename: &str) -> Result<InputKind, String> {
         ImageFormat::Tiff => Ok(InputKind::Tiff),
         ImageFormat::WebP => Ok(InputKind::Webp),
         ImageFormat::Avif => Ok(InputKind::Avif),
+        ImageFormat::OpenExr => Ok(InputKind::Exr),
+        ImageFormat::Hdr => Ok(InputKind::Hdr),
+        ImageFormat::Tga => Ok(InputKind::Tga),
         _ => Err(format!(
             "{}形式は現在サポートしていません。",
             ext.to_ascii_uppercase()
@@ -109,6 +125,7 @@ fn base_format(kind: InputKind) -> Option<ImageFormat> {
         InputKind::Gif => Some(ImageFormat::Gif),
         InputKind::Tiff => Some(ImageFormat::Tiff),
         InputKind::Webp => Some(ImageFormat::WebP),
+        InputKind::Tga => Some(ImageFormat::Tga),
         _ => None,
     }
 }
@@ -127,6 +144,11 @@ fn display_format(kind: InputKind) -> &'static str {
         InputKind::Dicom => "DICOM",
         InputKind::Pdf => "PDF",
         InputKind::Ai => "AI (PDF互換)",
+        InputKind::Svg => "SVG",
+        InputKind::Jxl => "JPEG XL",
+        InputKind::Exr => "OpenEXR",
+        InputKind::Hdr => "Radiance HDR",
+        InputKind::Tga => "TGA",
     }
 }
 fn image_error(error: image::ImageError) -> String {
@@ -359,6 +381,29 @@ fn decode_kind(bytes: &[u8], kind: InputKind, frame: usize) -> Result<DynamicIma
         InputKind::Dicom => extra::decode_dicom(bytes, frame as u32),
         InputKind::Pdf => extra::decode_pdf(bytes, frame),
         InputKind::Ai => extra::decode_ai(bytes, frame),
+        InputKind::Svg => {
+            if frame != 0 { return Err("SVG has one frame".into()); }
+            modern::svg(bytes, MAX_DIMENSION, MAX_PIXELS)
+        }
+        InputKind::Jxl => modern::decode_jxl(bytes, frame, MAX_DIMENSION, MAX_PIXELS),
+        InputKind::Exr | InputKind::Hdr => {
+            if frame != 0 { return Err("HDR image has one frame".into()); }
+            let fmt = if kind == InputKind::Exr { ImageFormat::OpenExr } else { ImageFormat::Hdr };
+            check_header_dimensions(bytes, fmt)?;
+            let mut rgba = decoder(bytes, fmt)?.to_rgba32f();
+            for p in rgba.pixels_mut() {
+                for c in &mut p.0[..3] {
+                    let v = if c.is_finite() { c.clamp(0.0, 1.0) } else { 0.0 };
+                    *c = if v <= 0.0031308 { 12.92 * v } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 };
+                }
+            }
+            let (w,h) = rgba.dimensions();
+            Ok(DynamicImage::ImageRgba8(RgbaImage::from_fn(w,h,|x,y| {
+                let p=rgba.get_pixel(x,y);
+                let alpha=if p[3].is_finite(){p[3].clamp(0.0,1.0)}else{0.0};
+                image::Rgba([(p[0]*255.0+0.5) as u8,(p[1]*255.0+0.5) as u8,(p[2]*255.0+0.5) as u8,(alpha*255.0+0.5) as u8])
+            })))
+        }
         _ => {
             if frame != 0 {
                 return Err("この画像には指定されたフレームがありません。".into());
@@ -372,6 +417,7 @@ fn decode_kind(bytes: &[u8], kind: InputKind, frame: usize) -> Result<DynamicIma
 fn frame_count(bytes: &[u8], kind: InputKind) -> Result<usize, String> {
     match kind {
         InputKind::Gif => gif_frame_count(bytes),
+        InputKind::Jxl => modern::jxl_frames(bytes),
         InputKind::Tiff => extra::tiff_page_count(bytes),
         InputKind::Pdf => extra::pdf_page_count(bytes),
         InputKind::Ai => {
@@ -391,7 +437,7 @@ fn frame_count(bytes: &[u8], kind: InputKind) -> Result<usize, String> {
 
 #[wasm_bindgen]
 pub fn capabilities() -> String {
-    json!({"inputs":["PNG","JPEG","JPG","BMP","GIF","TIFF","TIF","WebP","AVIF","HEIF","HEIC","CR2","NEF","ARW","PSD","AI (PDF互換)","PDF","DICOM"],"outputs":["PNG","JPEG","BMP","GIF","TIFF","WebP","AVIF","HEIF","HEIC"],"limits":{"maxBytes":MAX_BYTES,"maxPixels":MAX_PIXELS,"maxDimension":MAX_DIMENSION},"notes":{"webp":"可逆圧縮のみ","animated":"静止フレーム単位で変換","ai":"PDF互換AIファイルに限定","avif":"静止画と各フレーム"}}).to_string()
+    json!({"inputs":["PNG","JPEG","JPG","BMP","GIF","TIFF","TIF","WebP","AVIF","HEIF","HEIC","CR2","NEF","ARW","PSD","AI (PDF互換)","PDF","DICOM","SVG","JXL","EXR","HDR","TGA"],"outputs":["PNG","JPEG","BMP","GIF","TIFF","WebP","AVIF","HEIF","HEIC","JXL","TGA"],"limits":{"maxBytes":MAX_BYTES,"maxPixels":MAX_PIXELS,"maxDimension":MAX_DIMENSION},"notes":{"webp":"可逆圧縮のみ","animated":"静止フレーム単位で変換","ai":"PDF互換AIファイルに限定","avif":"静止画と各フレーム","jxl":"lossless; maximum 1000 keyframes","hdr":"linear RGB to sRGB 8-bit, clamped; non-finite values become zero","svg":"offline; external resources disabled; embedded Noto Sans supports Latin, Greek and Cyrillic"}}).to_string()
 }
 
 #[wasm_bindgen]
@@ -400,6 +446,12 @@ pub fn inspect(bytes: &[u8], filename: &str) -> Result<String, JsValue> {
         return Err(js_error("空のファイルです。"));
     }
     let kind = input_kind(bytes, filename).map_err(js_error)?;
+    if kind == InputKind::Jxl {
+        let (width,height)=modern::jxl_dimensions(bytes,MAX_DIMENSION,MAX_PIXELS).map_err(js_error)?;
+        let frames=frame_count(bytes,kind).map_err(js_error)?;
+        decode_kind(bytes,kind,0).map_err(js_error)?;
+        return Ok(json!({"format":display_format(kind),"extension":lower_ext(filename),"width":width,"height":height,"frames":frames,"pages":frames,"animated":frames>1,"bytes":bytes.len()}).to_string());
+    }
     let frames = frame_count(bytes, kind).map_err(js_error)?;
     if frames == 0 {
         return Err(js_error("ページまたはフレームが見つかりません。"));
@@ -407,7 +459,7 @@ pub fn inspect(bytes: &[u8], filename: &str) -> Result<String, JsValue> {
     let image = decode_kind(bytes, kind, 0).map_err(js_error)?;
     let (width, height) = (image.width(), image.height());
     guard_dimensions(width, height).map_err(js_error)?;
-    Ok(json!({"format":display_format(kind),"extension":lower_ext(filename),"width":width,"height":height,"frames":frames,"pages":frames,"animated":matches!(kind, InputKind::Gif | InputKind::Png | InputKind::Webp | InputKind::Avif) && frames > 1,"bytes":bytes.len()}).to_string())
+    Ok(json!({"format":display_format(kind),"extension":lower_ext(filename),"width":width,"height":height,"frames":frames,"pages":frames,"animated":matches!(kind, InputKind::Gif | InputKind::Png | InputKind::Webp | InputKind::Avif | InputKind::Jxl) && frames > 1,"bytes":bytes.len()}).to_string())
 }
 
 #[wasm_bindgen]
@@ -419,8 +471,9 @@ pub fn convert(bytes: &[u8], filename: &str, options_json: &str) -> Result<Vec<u
     let opts: ConvertOptions = serde_json::from_str(options_json)
         .map_err(|e| js_error(format!("変換設定を読み取れません: {e}")))?;
     let out = opts.format.to_ascii_lowercase();
+    let is_jxl = out == "jxl";
     let is_heic = matches!(out.as_str(), "heif" | "heic");
-    let out_fmt = if is_heic {
+    let out_fmt = if is_heic || is_jxl {
         None
     } else {
         Some(output_format(&out).ok_or_else(|| {
@@ -462,6 +515,7 @@ pub fn convert(bytes: &[u8], filename: &str, options_json: &str) -> Result<Vec<u
     if is_heic {
         return heic_encode(&rgba, opts.quality.clamp(1, 100)).map_err(js_error);
     }
+    if is_jxl { return modern::encode_jxl(&rgba,width,height).map_err(js_error); }
     let fmt = out_fmt.unwrap();
     let quality = opts.quality.clamp(1, 100);
     let encoded = match fmt {
@@ -487,6 +541,7 @@ pub fn convert(bytes: &[u8], filename: &str, options_json: &str) -> Result<Vec<u
             height,
             ExtendedColorType::Rgba8,
         ),
+        ImageFormat::Tga => codecs::tga::TgaEncoder::new(&mut output).encode(&rgba,width,height,ExtendedColorType::Rgba8),
         ImageFormat::Gif => codecs::gif::GifEncoder::new(&mut output).encode(
             &rgba,
             width,
@@ -668,5 +723,29 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn jpeg_xl_is_lossless_with_alpha_and_tga_round_trips_rgba() {
+        let pixels = RgbaImage::from_raw(2, 2, vec![25, 80, 190, 255, 210, 30, 90, 64, 4, 120, 240, 128, 40, 50, 60, 0]).unwrap();
+        let mut input = Cursor::new(Vec::new());
+        codecs::png::PngEncoder::new(&mut input)
+            .write_image(&pixels, 2, 2, ExtendedColorType::Rgba8).unwrap();
+        let input = input.into_inner();
+        let jxl = convert(&input, "tiny.png", r#"{"format":"jxl"}"#).unwrap();
+        assert!(jxl.starts_with(b"\xff\x0a") || (jxl.len()>12 && &jxl[4..12]==b"JXL \r\n\x87\n"));
+        let decoded=modern::decode_jxl(&jxl,0,MAX_DIMENSION,MAX_PIXELS).unwrap().to_rgba8();
+        assert_eq!(decoded.as_raw(),pixels.as_raw());
+        let tga=convert(&input,"tiny.png",r#"{"format":"tga"}"#).unwrap();
+        let decoded=ImageReader::with_format(Cursor::new(tga),ImageFormat::Tga).decode().unwrap().to_rgba8();
+        assert_eq!(decoded.as_raw(),pixels.as_raw());
+    }
+
+    #[test]
+    fn svg_rasterizes_offline_and_ignores_external_images() {
+        let svg=br##"<svg xmlns="http://www.w3.org/2000/svg" width="2" height="1"><rect width="1" height="1" fill="#ff0000"/><image href="https://example.invalid/pixel.png" x="1" width="1" height="1"/></svg>"##;
+        let image=modern::svg(svg,MAX_DIMENSION,MAX_PIXELS).unwrap().to_rgba8();
+        assert_eq!(image.get_pixel(0,0).0,[255,0,0,255]);
+        assert_eq!(image.get_pixel(1,0).0,[0,0,0,0]);
     }
 }

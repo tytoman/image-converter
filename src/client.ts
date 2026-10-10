@@ -1,7 +1,7 @@
 import { zip, strToU8 } from 'fflate';
 import { icon } from './icons';
 
-type Format = 'PNG' | 'JPEG' | 'WEBP' | 'HEIF' | 'HEIC' | 'BMP' | 'TIFF' | 'GIF' | 'AVIF';
+type Format = 'PNG' | 'JPEG' | 'WEBP' | 'HEIF' | 'HEIC' | 'BMP' | 'TIFF' | 'GIF' | 'AVIF' | 'JXL' | 'TGA';
 type Metadata = { format: string; width: number; height: number; frames: number; animated: boolean };
 type Capability = { inputs: string[]; outputs: string[] };
 type Item = {
@@ -126,7 +126,7 @@ function escapeHtml(value: string) {
 function normalizedFormat(format: string): Format | undefined {
   const raw = format.toUpperCase().replace(/^IMAGE\//, '').replace(/\./g, '');
   const f = raw === 'JPG' ? 'JPEG' : raw === 'TIF' ? 'TIFF' : raw === 'HEIF/HEIC' ? 'HEIF' : raw;
-  const known: Format[] = ['PNG', 'JPEG', 'WEBP', 'HEIF', 'HEIC', 'BMP', 'TIFF', 'GIF', 'AVIF'];
+  const known: Format[] = ['PNG', 'JPEG', 'WEBP', 'HEIF', 'HEIC', 'BMP', 'TIFF', 'GIF', 'AVIF', 'JXL', 'TGA'];
   return known.find((x) => x === f);
 }
 
@@ -152,6 +152,8 @@ function mime(format: string) {
       HEIF: 'image/heif',
       HEIC: 'image/heic',
       AVIF: 'image/avif',
+      JXL: 'image/jxl',
+      TGA: 'image/x-tga',
     } as Record<string, string>)[f] || 'application/octet-stream'
   );
 }
@@ -228,7 +230,7 @@ function currentCompression(): number {
 
 function renderFormats() {
   const supported = (capabilities?.outputs || []).map(normalizedFormat).filter((x): x is Format => Boolean(x));
-  const all: Format[] = ['PNG', 'JPEG', 'WEBP', 'AVIF', 'HEIF', 'HEIC', 'TIFF', 'GIF', 'BMP'];
+  const all: Format[] = ['PNG', 'JPEG', 'WEBP', 'AVIF', 'HEIF', 'HEIC', 'TIFF', 'GIF', 'BMP', 'JXL', 'TGA'];
 
   formatGrid.replaceChildren(
     ...all.map((format) => {
@@ -267,7 +269,7 @@ function renderFormats() {
   }
 
   $('format-note').textContent = supported.length
-    ? `このエンジンで出力可能 · ${supported.length}/9 形式`
+    ? `このエンジンで出力可能 · ${supported.length}/${all.length} 形式`
     : '出力形式をサポートしていません';
 }
 
@@ -276,13 +278,12 @@ function announce(message: string) {
 }
 
 function canThumbnail(file: File) {
-  const type = file.type.toLowerCase();
-  if (type.startsWith('image/')) {
-    if (type.includes('tiff') || type.includes('heic') || type.includes('heif')) return false;
-    return true;
-  }
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext);
+  // Never hand SVG to the browser image loader: it can resolve external SVG references.
+  const type = file.type.toLowerCase();
+  if (type === 'image/svg+xml' || ['svg', 'exr', 'hdr', 'jxl', 'tga', 'tif', 'tiff', 'heic', 'heif'].includes(ext)) return false;
+  if (type.startsWith('image/')) return true;
+  return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(ext);
 }
 
 async function addFiles(files: FileList | File[]) {
@@ -387,6 +388,11 @@ function isAccepted(file: File) {
     'pdf',
     'dcm',
     'dicom',
+    'svg',
+    'exr',
+    'hdr',
+    'jxl',
+    'tga',
   ];
   return known.includes(ext);
 }
@@ -658,7 +664,7 @@ function getGlobalScaleCandidates(): { candidates?: Map<Item, GlobalScale>; erro
     if (item.meta && !item.error) {
       if (!validScale(nextX, unit) || !validScale(nextY, unit)) return { error: item.file.name + ': \u51fa\u529b\u5bf8\u6cd5\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002' };
       const dims = scaleToPixels(item.meta, nextX, nextY, unit);
-      if (dims.width && dims.height && (dims.width > maxDimension || dims.height > maxDimension)) return { error: '\u51fa\u529b\u5bf8\u6cd5\u306f\u6700\u5927 ' + maxDimension.toLocaleString() + ' px \u3067\u3059: ' + item.file.name };
+    if (dims.width && dims.height && (dims.width > maxDimension || dims.height > maxDimension)) return { error: '\u51fa\u529b\u5bf8\u6cd5\u306f\u6700\u5927 ' + maxDimension.toLocaleString() + ' px \u3067\u3059: ' + item.file.name };
       if (dims.width && dims.height && dims.width * dims.height > maxPixels) return { error: '\u51fa\u529b\u30b5\u30a4\u30ba\u304c 40 MP \u3092\u8d85\u3048\u3066\u3044\u307e\u3059: ' + item.file.name };
     }
     candidates.set(item, { x: nextX, y: nextY, unit, locked: draftGlobalScale.locked, anchor: draftGlobalScale.anchor });
@@ -720,7 +726,11 @@ function updateControls() {
               ? '非可逆圧縮 · 品質を指定できます'
               : lossy
                 ? '非可逆圧縮 · 品質を指定できます'
-                : '可逆圧縮';
+                : output === 'JXL'
+                  ? '可逆圧縮 · 品質設定なし'
+                  : output === 'TGA'
+                    ? '透過情報を保持 · 圧縮設定なし'
+                    : '可逆圧縮';
 
   $('format-note').textContent = formatSupported
     ? outputNote
@@ -834,6 +844,7 @@ function validateSettings(): string | undefined {
     if (!item.meta || item.error) continue;
     if (!validScale(item.scaleX, item.scaleUnit) || !validScale(item.scaleY, item.scaleUnit)) return `${item.file.name}: 出力寸法を確認してください。`;
     const dims = scaleToPixels(item.meta, item.scaleX, item.scaleY, item.scaleUnit);
+    if (currentFormat() === 'JXL' && dims.width !== undefined && dims.height !== undefined && (dims.width < 2 || dims.height < 2)) return item.file.name + ': JXL 出力は幅・高さともに 2 px 以上が必要です。';
     if (dims.width && dims.height && (dims.width > maxDimension || dims.height > maxDimension)) return `出力寸法は最大 ${maxDimension.toLocaleString()} px です。`;
     if (dims.width && dims.height && dims.width * dims.height > maxPixels) return '出力サイズが 40 MP を超えています。';
   }

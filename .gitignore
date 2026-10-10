@@ -9,6 +9,7 @@ dist/
 # Rust build output
 /engine/target/
 /engine/vendor/*/target/
+/third-party-sources/*/target/
 
 # Local environment and secrets
 .env
@@ -32,4 +33,3 @@ Desktop.ini
 .vscode/
 *.swp
 *.swo
-

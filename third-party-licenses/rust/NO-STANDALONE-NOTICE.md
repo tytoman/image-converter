@@ -17,12 +17,12 @@ These registry packages contain no root-level `LICENSE*`, `COPYING*`, `NOTICE*`,
 | `dicom-parser` | 0.10.0 | `MIT OR Apache-2.0` | [common license texts](../common/) |
 | `dicom-pixeldata` | 0.10.0 | `MIT OR Apache-2.0` | [common license texts](../common/) |
 | `dicom-transfer-syntax-registry` | 0.10.0 | `MIT OR Apache-2.0` | [common license texts](../common/) |
+| `encoding_index_tests` | 0.1.4 | `CC0-1.0` | [common license texts](../common/) |
 | `encoding-index-japanese` | 1.20141219.5 | `CC0-1.0` | [common license texts](../common/) |
 | `encoding-index-korean` | 1.20141219.5 | `CC0-1.0` | [common license texts](../common/) |
 | `encoding-index-simpchinese` | 1.20141219.5 | `CC0-1.0` | [common license texts](../common/) |
 | `encoding-index-singlebyte` | 1.20141219.5 | `CC0-1.0` | [common license texts](../common/) |
 | `encoding-index-tradchinese` | 1.20141219.5 | `CC0-1.0` | [common license texts](../common/) |
-| `encoding_index_tests` | 0.1.4 | `CC0-1.0` | [common license texts](../common/) |
 | `enough` | 0.4.4 | `MIT OR Apache-2.0` | [common license texts](../common/) |
 | `magetypes` | 0.9.29 | `MIT OR Apache-2.0` | [common license texts](../common/) |
 | `profiling` | 1.0.18 | `MIT OR Apache-2.0` | [common license texts](../common/) |
@@ -34,4 +34,6 @@ These registry packages contain no root-level `LICENSE*`, `COPYING*`, `NOTICE*`,
 | `valuable` | 0.1.1 | `MIT` | [common license texts](../common/) |
 | `zenpixels` | 0.2.16 | `Apache-2.0 OR MIT` | [common license texts](../common/) |
 | `zenpixels-convert` | 0.2.16 | `Apache-2.0 OR MIT` | [common license texts](../common/) |
+| `zune-core` | 0.4.12 | `MIT OR Apache-2.0 OR Zlib` | [common license texts](../common/) |
 | `zune-inflate` | 0.2.54 | `MIT OR Apache-2.0 OR Zlib` | [common license texts](../common/) |
+| `zune-jpeg` | 0.4.21 | `MIT OR Apache-2.0 OR Zlib` | [common license texts](../common/) |

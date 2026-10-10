@@ -50,3 +50,7 @@ Rust の必要バージョンは `engine/rust-toolchain.toml` を参照してく
 ## ライセンス
 
 このアプリのオリジナル部分は AGPL-3.0-only です。再配布時は [LICENSE](LICENSE) と [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md) を確認してください。GPL、LGPL、MPL の依存クレートについては、ライセンス文書とソーススナップショットを `third-party-sources/` に同梱しています。
+
+## 追加形式
+
+SVG・EXR・HDR は入力に、JXL・TGA は入力と出力に対応しています。JXL 出力は可逆圧縮で、幅・高さともに 2 px 以上が必要です。EXR・HDR は8bit sRGBへ変換し、範囲外の明るさはクリップします。SVG の文字は同梱の Noto Sans で描画するため、日本語など未収録の文字は事前にパスへ変換してください。ブラウザーが直接表示できない形式はプレビューを省略します。詳しい制約は [docs/SUPPORT.md](docs/SUPPORT.md) を参照してください。
