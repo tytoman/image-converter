@@ -524,11 +524,13 @@
   .app-footer { max-width: none; padding: 0 var(--space-16) var(--space-12); }
 
   /* File row: 入力 → 倍率 → 出力 の流れを 1 行で読めるよう横並びに整理 */
-  .list-head, .file-row { min-width: 824px; grid-template-columns: minmax(240px, 1fr) 176px minmax(280px, 1fr) 24px; column-gap: var(--space-12); }
+  .list-head, .file-row { min-width: 0; grid-template-columns: minmax(180px, 1fr) 128px minmax(240px, 1fr) 24px; column-gap: var(--space-12); }
   .list-head { position: sticky; top: 0; z-index: 1; padding: 0 var(--space-8) 0 var(--space-12); background: var(--surface-default); }
   .file-row { min-height: 0; align-items: start; padding: var(--space-12) var(--space-8) var(--space-12) var(--space-12); }
   .input-image, .output-image { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: start; gap: var(--space-6) var(--space-8); min-width: 0; min-height: 0; }
-  .input-image .file-name-text, .output-image .result-file { grid-column: 1 / -1; grid-row: 1; }
+  .image-name-row { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: var(--space-6); min-width: 0; }
+  .image-name-row .file-name-text, .image-name-row .result-file { flex: 0 1 auto; width: auto; }
+  .image-name-row .status { flex: none; font-size: var(--text-xs); }
   .output-image { grid-template-columns: 64px minmax(0, 1fr) auto; }
   .output-image > .thumb { grid-column: 1; grid-row: 2; }
   .output-image > .output-detail { grid-column: 2; grid-row: 2; }
@@ -551,7 +553,7 @@
   .image-metadata dd { min-width: 0; margin: 0; color: var(--text-default); font-family: var(--font-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .image-metadata .metadata-size { display: flex; align-items: center; gap: var(--space-6); white-space: nowrap; }
   .output-actions { display: flex; align-items: center; gap: var(--space-8); }
-  .resolution-row { grid-template-columns: 136px auto; grid-template-rows: repeat(2, auto); width: fit-content; max-width: 100%; }
+  .resolution-row { grid-template-columns: 96px auto; grid-template-rows: repeat(2, auto); width: fit-content; max-width: 100%; }
   .resolution-row > .dimension:first-child { grid-column: 1; grid-row: 1; }
   .resolution-row > .dimension:last-child { grid-column: 1; grid-row: 2; }
   .resolution-row > .aspect-lock { grid-column: 2; grid-row: 1 / 3; }

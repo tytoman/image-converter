@@ -422,32 +422,29 @@ function renderItems() {
       const count = frameTotal(item.meta);
       const multiple = count > 1;
       const badRange = invalidFrameSelection(item);
-      const displayedStatus = badRange ? '範囲を確認' : item.status;
+      const inputStatus = item.status === '完了' ? '準備完了' : item.status;
+      const displayedStatus = badRange ? '範囲を確認' : inputStatus;
       const badge =
         normalizedFormat(item.meta?.format || '') ||
         (item.file.name.split('.').pop() || 'IMG').toUpperCase().slice(0, 5);
 
       const statusIcon =
-        item.status === '完了'
-          ? icon('checkCircle', 14)
-          : item.status === '解析中' || item.status === '変換中'
-            ? icon('spinner', 14)
-            : item.error || badRange
-              ? icon('alert', 14)
-              : item.status === '準備完了'
-                ? icon('dotCircle', 14)
-                : icon('minusCircle', 14);
+        inputStatus === '解析中' || inputStatus === '変換中'
+          ? icon('spinner', 14)
+          : item.error || badRange
+            ? icon('alert', 14)
+            : inputStatus === '準備完了'
+              ? icon('dotCircle', 14)
+              : icon('minusCircle', 14);
 
       const statusClass =
         item.error || badRange
           ? 'error'
-          : item.status === '完了'
-            ? 'success'
-            : item.status === '解析中' || item.status === '変換中'
-              ? 'busy'
-              : item.status === '準備完了'
-                ? 'ready'
-                : 'muted';
+          : inputStatus === '解析中' || inputStatus === '変換中'
+            ? 'busy'
+            : inputStatus === '準備完了'
+              ? 'ready'
+              : 'muted';
 
       const thumbHtml = item.thumbUrl
         ? `<div class="thumb"><img src="${item.thumbUrl}" alt="" loading="lazy" /></div>`
@@ -456,7 +453,10 @@ function renderItems() {
 
       row.innerHTML = `
         <div class="input-image">
-          <span class="file-name-text" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</span>
+          <div class="image-name-row">
+            <span class="file-name-text" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</span>
+            <span class="status input-status ${statusClass}" title="${escapeHtml(item.error || '')}">${statusIcon}<span>${escapeHtml(displayedStatus)}</span></span>
+          </div>
           ${thumbHtml}
           <div class="input-info image-info">
             ${imageMetadata(badge, item.meta?.width, item.meta?.height, item.file.size)}
@@ -471,7 +471,6 @@ function renderItems() {
             <div class="dimension"><span>縦</span><input class="item-scale-y" aria-label="${escapeHtml(item.file.name)} の縦${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 500}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleY}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit-peer" aria-label="${escapeHtml(item.file.name)} の縦単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
           </div>
           <span class="item-dimensions result-meta"></span>
-          <span class="status ${statusClass}" title="${escapeHtml(item.error || '')}">${statusIcon}<span>${escapeHtml(displayedStatus)}</span></span>
         </div>
         <div class="output-images"></div>
         <button type="button" class="icon-button remove-file" aria-label="${escapeHtml(item.file.name)} を削除" data-tooltip="削除" ${running ? 'disabled' : ''}>
@@ -566,10 +565,13 @@ function renderItems() {
               : 'カンマ区切り、範囲指定可（1 始まり）';
             errorDetail.hidden = !item.error && !invalid;
             errorDetail.innerHTML = `${icon('alert', 12)}<span>${escapeHtml(item.error || (invalid ? rangeInput.title : ''))}</span>`;
-            const status = row.querySelector<HTMLElement>('.status');
+            const status = row.querySelector<HTMLElement>('.input-status');
             if (status) {
-              status.className = `status ${invalid || item.error ? 'error' : item.status === '完了' ? 'success' : 'ready'}`;
-              status.innerHTML = `${invalid || item.error ? icon('alert', 14) : icon('dotCircle', 14)}<span>${escapeHtml(invalid ? '範囲を確認' : item.status)}</span>`;
+              const busy = inputStatus === '解析中' || inputStatus === '変換中';
+              const ready = inputStatus === '準備完了';
+              const error = invalid || Boolean(item.error);
+              status.className = `status input-status ${error ? 'error' : busy ? 'busy' : ready ? 'ready' : 'muted'}`;
+              status.innerHTML = `${icon(error ? 'alert' : busy ? 'spinner' : ready ? 'dotCircle' : 'minusCircle', 14)}<span>${escapeHtml(invalid ? '範囲を確認' : inputStatus)}</span>`;
               status.title = invalid ? rangeInput.title : item.error || '';
             }
             updateControls();
@@ -697,7 +699,6 @@ function updateControls() {
     inp.disabled = !isSup || running;
   });
 
-  const available = capabilities?.outputs.map(normalizedFormat).filter(Boolean).length || 0;
   const outputNote =
     output === 'HEIF' || output === 'HEIC'
       ? '非可逆圧縮 · 透過情報は保持されません'
@@ -714,7 +715,7 @@ function updateControls() {
                 : '可逆圧縮';
 
   $('format-note').textContent = formatSupported
-    ? `${outputNote} · ${available}/9 形式を出力可能`
+    ? outputNote
     : `${output} はこのエンジンでは出力できません`;
 
   // Summary card in Inspector
@@ -757,7 +758,7 @@ function renderItemOutput(row: HTMLElement, item: Item) {
   for (const result of outputs) {
     const image = document.createElement('div');
     image.className = 'output-image';
-    image.innerHTML = `<span class="result-file" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>${result.thumbUrl ? `<div class="thumb"><img src="${result.thumbUrl}" alt="" loading="lazy" /></div>` : `<div class="thumb empty">${icon('image', 14)}</div>`}`;
+    image.innerHTML = `<div class="image-name-row"><span class="result-file" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>${result.error ? '' : `<span class="status success">${icon('checkCircle', 14)}<span>変換完了</span></span>`}</div>${result.thumbUrl ? `<div class="thumb"><img src="${result.thumbUrl}" alt="" loading="lazy" /></div>` : `<div class="thumb empty">${icon('image', 14)}</div>`}`;
     const detail = document.createElement('div');
     detail.className = 'output-detail';
     if (result.error) {
@@ -787,7 +788,6 @@ function renderResults() {
   const fail = results.filter((r) => r.error).length;
   $('result-count').textContent = `${succ} 件成功${fail ? ` · ${fail} 件失敗` : ''}`;
   $('download-all').toggleAttribute('disabled', running || succ === 0);
-  $('reset-results').toggleAttribute('disabled', running || !resultsOpen);
   for (const row of list.querySelectorAll<HTMLElement>('[data-item-id]')) {
     const item = items.find((item) => item.id === row.dataset.itemId);
     if (item) renderItemOutput(row, item);
@@ -801,25 +801,6 @@ function cleanupResults() {
   }
   results.length = 0;
   storedOutputBytes = 0;
-}
-
-function resetResults() {
-  if (running || !resultsOpen) return;
-  cleanupResults();
-  resultsOpen = false;
-  const progressWrap = $('progress-wrap');
-  progressWrap.hidden = true;
-  progressWrap.className = 'progress-wrap';
-  $('progress-label').textContent = '準備中…';
-  $('progress-percent').textContent = '0%';
-  const bar = $('progress-bar');
-  bar.style.width = '0%';
-  bar.parentElement?.setAttribute('aria-valuenow', '0');
-  renderResults();
-  updateControls();
-  $('convert').focus();
-  if (document.activeElement === $('reset-results')) $('add-files').focus();
-  announce('変換結果をリセットしました');
 }
 
 function readOptions(frame: number, item: Item) {
@@ -1223,7 +1204,6 @@ $('clear-files').addEventListener('click', clearFiles);
 $('convert').addEventListener('click', () => void convertAll());
 $('cancel-convert').addEventListener('click', cancel);
 $('download-all').addEventListener('click', () => void downloadZip());
-$('reset-results').addEventListener('click', resetResults);
 
 quality.addEventListener('input', updateQuality);
 $('preset').addEventListener('change', (event) => applyPreset((event.target as HTMLSelectElement).value));
