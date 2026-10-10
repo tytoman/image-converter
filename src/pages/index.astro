@@ -38,7 +38,8 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
             <div class="panel-header">
               <div class="panel-title"><h2 id="files-title">画像</h2><span id="file-count" class="count">0 件</span></div>
               <div class="panel-actions">
-                <button id="clear-files" class="button subtle" type="button" disabled><Fragment set:html={icon('trash', 14)} /><span class="label-long">すべて削除</span></button>
+
+                <button id="clear-files" class="button subtle" type="button" disabled aria-label="すべて削除" data-tooltip="すべて削除"><Fragment set:html={icon('trash', 14)} /><span class="label-long">すべて削除</span></button>
                 <button id="add-files" class="button outlined" type="button" data-tooltip="ファイルを追加" data-kbd="Mod O"><Fragment set:html={icon('plus', 14)} />ファイルを追加</button>
                 <input id="file-input" type="file" multiple hidden accept=".png,.jpg,.jpeg,.webp,.heif,.heic,.bmp,.tif,.tiff,.gif,.avif,.cr2,.nef,.arw,.psd,.ai,.pdf,.dcm,.dicom" />
               </div>
@@ -54,10 +55,21 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
             </div>
 
             <div id="file-list-wrap" class="file-list-wrap" hidden>
-              <div class="list-head" aria-hidden="true"><span>入力</span><span></span><span>出力</span><span></span></div>
+              <div class="list-head"><span>入力</span><span class="column-heading"><span>サイズ</span><button id="global-size-toggle" class="icon-button column-action" type="button" aria-label="全画像のサイズを設定" data-tooltip="全画像のサイズを設定" aria-expanded="false" aria-controls="global-size-panel"><Fragment set:html={icon('chevronDown', 14, 'global-size-chevron')} /></button></span><span>出力</span><span></span></div>
+              <div class="global-size-panel resolution-group" id="global-size-panel" hidden role="region" aria-labelledby="scale-heading">
+                <div id="scale-heading" class="field-label scale-heading" data-tooltip="全画像のサイズ"><Fragment set:html={icon('scale', 14)} /><span>全画像のサイズ</span></div>
+                <div class="resolution-row">
+                  <div class="dimension" data-tooltip="横の出力寸法"><span>横</span><input id="scale-x" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の横の倍率" aria-describedby="resolution-preview" /><select id="scale-unit" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
+                  <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="scale-lock" type="checkbox" checked aria-label="全画像のアスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
+                  <div class="dimension" data-tooltip="縦の出力寸法"><span>縦</span><input id="scale-y" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の縦の倍率" aria-describedby="resolution-preview" /><select class="scale-unit-peer" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
+                </div>
+                <small id="scale-unit-note" class="field-note">1〜500% · ロック中は元の縦横比を維持</small>
+                <small id="resolution-preview" class="field-note">100% は元のサイズです。</small>
+                <button id="global-size-apply" class="button outlined" type="button">適用</button>
+              </div>
               <div id="file-list" class="file-list" role="list" aria-label="追加したファイル"></div>
             </div>
-            <div class="panel-footer"><span id="file-hint">最大ファイルサイズはブラウザーのメモリに依存します。</span><div id="results-panel" class="panel-actions" hidden><span id="result-count" class="count"></span><button id="download-all" class="button tinted" type="button" disabled data-tooltip="すべてを ZIP で保存" data-kbd="Mod S"><Fragment set:html={icon('archive', 14)} />ZIP で保存</button></div></div>
+            <div class="panel-footer"><span id="file-hint">最大ファイルサイズはブラウザーのメモリに依存します。</span><div id="results-panel" class="panel-actions" hidden><span id="result-count" class="count"></span><button id="download-all" class="button outlined" type="button" disabled data-tooltip="すべてを ZIP で保存" data-kbd="Mod S"><Fragment set:html={icon('archive', 14)} />ZIP で保存</button></div></div>
           </section>
 
         </div>
@@ -91,16 +103,6 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
                 <input id="quality" class="range" type="range" min="1" max="100" value="85" aria-describedby="quality-note" />
                 <div class="range-labels" aria-hidden="true"><span>小さい</span><span>高品質</span></div>
                 <small id="quality-note" class="field-note" hidden></small>
-              </div>
-              <div class="field resolution-group">
-                <div id="scale-heading" class="field-label scale-heading" data-tooltip="倍率（全画像）"><Fragment set:html={icon('scale', 14)} /><span>全画像</span><span class="sr-only">の倍率</span></div>
-                <div class="resolution-row">
-                  <div class="dimension" data-tooltip="横の出力寸法"><span>横</span><input id="scale-x" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の横の倍率" aria-describedby="resolution-preview" /><select id="scale-unit" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
-                  <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="scale-lock" type="checkbox" checked aria-label="全画像のアスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
-                  <div class="dimension" data-tooltip="縦の出力寸法"><span>縦</span><input id="scale-y" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の縦の倍率" aria-describedby="resolution-preview" /><select class="scale-unit-peer" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
-                </div>
-                <small id="scale-unit-note" class="field-note">1〜500% · ロック中は元の縦横比を維持</small>
-                <small id="resolution-preview" class="field-note">100% &#12399;&#20803;&#12398;&#12469;&#12452;&#12474;&#12391;&#12377;&#12290;</small>
               </div>
             </div>
             <div class="settings-footer">
