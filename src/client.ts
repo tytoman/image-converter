@@ -353,7 +353,7 @@ async function addFiles(files: FileList | File[]) {
         item.error = `ページ / フレーム数は 1–${maxFramesPerFile.toLocaleString()} の範囲で指定してください`;
         item.status = '上限超過';
       } else if (item.meta.width * item.meta.height > maxPixels) {
-        item.error = `40 MP を超えています (${item.meta.width.toLocaleString()} × ${item.meta.height.toLocaleString()})`;
+        item.error = `${maxPixels / 1_000_000} MP を超えています (${item.meta.width.toLocaleString()} × ${item.meta.height.toLocaleString()})`;
         item.status = '解像度超過';
       } else {
         item.status = '準備完了';
@@ -624,7 +624,7 @@ function removeItem(item: Item) {
 }
 
 function isLossy(format: Format) {
-  return ['JPEG', 'WEBP', 'HEIF', 'HEIC', 'AVIF'].includes(format);
+  return ['JPEG', 'HEIF', 'HEIC', 'AVIF'].includes(format);
 }
 
 function selectedCount() {
@@ -661,7 +661,7 @@ function getGlobalScaleCandidates(): { candidates?: Map<Item, GlobalScale>; erro
       if (!validScale(nextX, unit) || !validScale(nextY, unit)) return { error: item.file.name + ': \u51fa\u529b\u5bf8\u6cd5\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002' };
       const dims = scaleToPixels(item.meta, nextX, nextY, unit);
     if (dims.width && dims.height && (dims.width > maxDimension || dims.height > maxDimension)) return { error: '\u51fa\u529b\u5bf8\u6cd5\u306f\u6700\u5927 ' + maxDimension.toLocaleString() + ' px \u3067\u3059: ' + item.file.name };
-      if (dims.width && dims.height && dims.width * dims.height > maxPixels) return { error: '\u51fa\u529b\u30b5\u30a4\u30ba\u304c 40 MP \u3092\u8d85\u3048\u3066\u3044\u307e\u3059: ' + item.file.name };
+      if (dims.width && dims.height && dims.width * dims.height > maxPixels) return { error: `出力サイズが ${maxPixels / 1_000_000} MP を超えています: ${item.file.name}` };
     }
     candidates.set(item, { x: nextX, y: nextY, unit, locked: draftGlobalScale.locked, anchor: draftGlobalScale.anchor });
   }
@@ -719,7 +719,7 @@ function updateControls() {
           : output === 'BMP' || output === 'TIFF'
             ? 'この形式では圧縮設定を指定できません'
             : output === 'WEBP'
-              ? '非可逆圧縮 · 品質を指定できます'
+              ? '可逆圧縮 · 品質設定なし'
               : lossy
                 ? '非可逆圧縮 · 品質を指定できます'
                 : output === 'JXL'
@@ -842,7 +842,7 @@ function validateSettings(): string | undefined {
     const dims = scaleToPixels(item.meta, item.scaleX, item.scaleY, item.scaleUnit);
     if (currentFormat() === 'JXL' && dims.width !== undefined && dims.height !== undefined && (dims.width < 2 || dims.height < 2)) return item.file.name + ': JXL 出力は幅・高さともに 2 px 以上が必要です。';
     if (dims.width && dims.height && (dims.width > maxDimension || dims.height > maxDimension)) return `出力寸法は最大 ${maxDimension.toLocaleString()} px です。`;
-    if (dims.width && dims.height && dims.width * dims.height > maxPixels) return '出力サイズが 40 MP を超えています。';
+    if (dims.width && dims.height && dims.width * dims.height > maxPixels) return `出力サイズが ${maxPixels / 1_000_000} MP を超えています。`;
   }
   return undefined;
 }
@@ -1022,7 +1022,7 @@ async function downloadZip() {
     if (!result.error) entries[result.name] = new Uint8Array(await result.blob.arrayBuffer());
   }
   if (!Object.keys(entries).length) return;
-  entries['README.txt'] = strToU8('画像変換 — ブラウザー内で安全に生成しました。\nhttps://github.com/offline-image-converter\n');
+  entries['README.txt'] = strToU8('画像変換 — ブラウザー内で安全に生成しました。\nhttps://github.com/tytoman/image-converter\n');
   const archive = await new Promise<Uint8Array>((resolve, reject) => {
     zip(entries, { level: 5 }, (error, data) => (error ? reject(error) : resolve(data)));
   });

@@ -76,7 +76,7 @@ fn output_format(ext: &str) -> Option<ImageFormat> {
 }
 fn input_kind(bytes: &[u8], filename: &str) -> Result<InputKind, String> {
     if bytes.len() > MAX_BYTES {
-        return Err("ファイルサイズが64 MiBを超えています。".into());
+        return Err(format!("ファイルサイズが{} MiBを超えています。", MAX_BYTES / (1024 * 1024)));
     }
     let ext = lower_ext(filename);
     // Use the explicit RAW extension before generic TIFF sniffing (CR2 is TIFF-based).
@@ -162,7 +162,10 @@ fn guard_dimensions(width: u32, height: u32) -> Result<(), String> {
         || height > MAX_DIMENSION
         || (width as u64) * (height as u64) > MAX_PIXELS
     {
-        return Err("画像が処理上限を超えています（最大 16,384 px / 4,000 万画素）。".into());
+        return Err(format!(
+            "画像が処理上限を超えています（最大 {} px / {} 万画素）。",
+            MAX_DIMENSION, MAX_PIXELS / 10_000
+        ));
     }
     Ok(())
 }
