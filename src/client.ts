@@ -221,23 +221,9 @@ function currentFormat(): Format {
   return (checked?.value as Format) || 'PNG';
 }
 
-function setFormat(val: Format) {
-  const target = document.querySelector<HTMLInputElement>(`input[name="output-format"][value="${val}"]`);
-  if (target && !target.disabled) {
-    target.checked = true;
-    updateControls();
-    updateQuality();
-  }
-}
-
 function currentCompression(): number {
   const checked = document.querySelector<HTMLInputElement>('input[name="compression"]:checked');
   return Number(checked?.value || 6);
-}
-
-function setCompression(val: number) {
-  const target = document.querySelector<HTMLInputElement>(`input[name="compression"][value="${val}"]`);
-  if (target) target.checked = true;
 }
 
 function renderFormats() {
@@ -259,7 +245,6 @@ function renderFormats() {
       if (format === 'PNG' && isSup) input.checked = true;
 
       input.addEventListener('change', () => {
-        ($('preset') as HTMLSelectElement).value = 'custom';
         updateControls();
         updateQuality();
       });
@@ -503,7 +488,6 @@ function renderItems() {
           else { item.scaleX = Math.max(1, Math.round(item.scaleY * item.meta.width / item.meta.height)); itemScaleX.value = String(item.scaleX); }
         }
         if (!item.meta) item.pendingScale = { x: item.scaleX, y: item.scaleY, unit: item.scaleUnit };
-        ($('preset') as HTMLSelectElement).value = 'custom';
         updateItemScale();
         updateControls();
       };
@@ -518,7 +502,6 @@ function renderItems() {
           item.scaleX = v.x; item.scaleY = v.y;
         } else item.pendingScale ??= { x: item.scaleX, y: item.scaleY, unit: item.scaleUnit };
         item.scaleUnit = next;
-        ($('preset') as HTMLSelectElement).value = 'custom';
         renderItems(); updateControls();
       };
       itemUnitX.addEventListener('change', switchItemUnit);
@@ -692,7 +675,7 @@ function applyGlobalScale() {
     item.pendingScale = item.meta ? undefined : { x: candidate.x, y: candidate.y, unit: candidate.unit };
   }
   Object.assign(appliedGlobalScale, draftGlobalScale);
-  ($('preset') as HTMLSelectElement).value = 'custom'; renderItems(); updateControls();
+  renderItems(); updateControls();
 }
 function updateControls() {
   updateResolutionUI();
@@ -747,7 +730,7 @@ function updateControls() {
   const selTotal = selectedCount();
   const fileTotalCount = items.length;
   $('summary-count').innerHTML = fileTotalCount
-    ? `<b>${fileTotalCount}</b> 件 (${selTotal} 枚)`
+    ? `<b>${fileTotalCount}</b> 件${fileTotalCount === selTotal ? '' : ` (${selTotal} 枚)`}`
     : '—';
 
   let formatDetail = output;
@@ -781,6 +764,8 @@ function renderItemOutput(row: HTMLElement, item: Item) {
     return;
   }
   for (const result of outputs) {
+    const entry = document.createElement('div');
+    entry.className = 'output-entry';
     const image = document.createElement('div');
     image.className = 'output-image';
     image.innerHTML = `<div class="image-name-row"><span class="result-file" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>${result.error ? '' : `<span class="status success">${icon('checkCircle', 14)}<span>変換完了</span></span>`}</div>${result.thumbUrl ? `<div class="thumb"><img src="${result.thumbUrl}" alt="" loading="lazy" /></div>` : `<div class="thumb empty">${icon('image', 14)}</div>`}`;
@@ -800,10 +785,11 @@ function renderItemOutput(row: HTMLElement, item: Item) {
       save.dataset.tooltip = '個別保存';
       save.setAttribute('aria-label', `${result.name} を保存`);
       save.innerHTML = `${icon('download', 14)}保存`;
-      image.append(save);
+      entry.append(save);
     }
-    image.insertBefore(detail, image.querySelector('.download'));
-    images.append(image);
+    image.append(detail);
+    entry.prepend(image);
+    images.append(entry);
   }
 }
 
@@ -876,7 +862,7 @@ async function convertAll() {
   renderItems();
   updateControls();
 
-  for (const id of ['preset', 'scale-x', 'scale-y', 'scale-lock', 'scale-unit']) ($(id) as HTMLInputElement).disabled = true;
+  for (const id of ['scale-x', 'scale-y', 'scale-lock', 'scale-unit']) ($(id) as HTMLInputElement).disabled = true;
   document.querySelector<HTMLSelectElement>('.scale-unit-peer')!.disabled = true;
 
   const queue = items.filter(
@@ -968,7 +954,7 @@ async function convertAll() {
   running = false;
   cancelling = false;
 
-  for (const id of ['preset', 'scale-x', 'scale-y', 'scale-lock', 'scale-unit']) ($(id) as HTMLInputElement).disabled = false;
+  for (const id of ['scale-x', 'scale-y', 'scale-lock', 'scale-unit']) ($(id) as HTMLInputElement).disabled = false;
   document.querySelector<HTMLSelectElement>('.scale-unit-peer')!.disabled = false;
   $('cancel-convert').hidden = true;
   progressWrap.className = `progress-wrap ${wasCancelled ? '' : 'done'}`;
@@ -1043,43 +1029,6 @@ async function downloadZip() {
   link.download = 'converted-images.zip';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function applyPreset(value: string) {
-  if (value === 'custom') return;
-  scaleUnit.value = '%';
-  if (value === 'web') {
-    setFormat('WEBP');
-    quality.value = '82';
-    scaleXInput.value = '100';
-    setCompression(6);
-  } else if (value === 'archive') {
-    setFormat('PNG');
-    quality.value = '100';
-    scaleXInput.value = '100';
-    setCompression(9);
-  } else if (value === 'social') {
-    setFormat('JPEG');
-    quality.value = '88';
-    scaleXInput.value = '100';
-    setCompression(6);
-  }
-  scaleYInput.value = scaleXInput.value;
-  scaleLock.checked = true;
-  Object.assign(draftGlobalScale, { x: 100, y: 100, unit: '%' as const, locked: true, anchor: 'x' as const });
-  Object.assign(appliedGlobalScale, draftGlobalScale);
-  scaleXInput.value = scaleYInput.value = '100';
-  scaleUnit.value = '%';
-  for (const item of items) {
-    item.scaleX = scaleXInput.valueAsNumber;
-    item.scaleY = scaleYInput.valueAsNumber;
-    item.scaleLocked = true;
-    item.scaleUnit = '%'; item.pendingScale = undefined; item.scaleAnchor = 'x';
-  }
-  renderItems();
-  updateResolutionUI();
-  updateQuality();
-  updateControls();
 }
 
 function updateQuality() {
@@ -1250,11 +1199,9 @@ $('global-size-toggle').addEventListener('click', () => {
 });
 
 quality.addEventListener('input', updateQuality);
-$('preset').addEventListener('change', (event) => applyPreset((event.target as HTMLSelectElement).value));
 
 document.querySelectorAll<HTMLInputElement>('input[name="compression"]').forEach((radio) => {
   radio.addEventListener('change', () => {
-    ($('preset') as HTMLSelectElement).value = 'custom';
     updateControls();
   });
 });
@@ -1269,7 +1216,7 @@ function changeGlobalScale(axis: 'x' | 'y') {
     if (reference && axis === 'y') scaleXInput.value = String(Math.max(1, Math.round(scaleYInput.valueAsNumber * reference.width / reference.height)));
   }
   draftGlobalScale.x = scaleXInput.valueAsNumber; draftGlobalScale.y = scaleYInput.valueAsNumber;
-  ($('preset') as HTMLSelectElement).value = 'custom'; updateControls();
+  updateControls();
 }
 scaleXInput.addEventListener('input', () => changeGlobalScale('x'));
 scaleYInput.addEventListener('input', () => changeGlobalScale('y'));

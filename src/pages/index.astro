@@ -55,9 +55,9 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
             </div>
 
             <div id="file-list-wrap" class="file-list-wrap" hidden>
-              <div class="list-head"><span>入力</span><span class="column-heading"><span>サイズ</span><button id="global-size-toggle" class="icon-button column-action" type="button" aria-label="全画像のサイズを設定" data-tooltip="全画像のサイズを設定" aria-expanded="false" aria-controls="global-size-panel"><Fragment set:html={icon('chevronDown', 14, 'global-size-chevron')} /></button></span><span>出力</span><span></span></div>
+              <div class="list-head"><span>入力</span><span class="column-heading"><span>サイズ</span><button id="global-size-toggle" class="icon-button column-action" type="button" aria-label="全画像のサイズを設定" data-tooltip="全画像のサイズを設定" aria-expanded="false" aria-controls="global-size-panel"><Fragment set:html={icon('chevronDown', 14, 'global-size-chevron')} /></button></span><span>出力</span><span aria-hidden="true"></span></div>
               <div class="global-size-panel resolution-group" id="global-size-panel" hidden role="region" aria-labelledby="scale-heading">
-                <div id="scale-heading" class="field-label scale-heading" data-tooltip="全画像のサイズ"><Fragment set:html={icon('scale', 14)} /><span>全画像のサイズ</span></div>
+                <div id="scale-heading" class="field-label scale-heading" data-tooltip="全画像のサイズ"><span>全画像のサイズ</span></div>
                 <div class="resolution-row">
                   <div class="dimension" data-tooltip="横の出力寸法"><span>横</span><input id="scale-x" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の横の倍率" aria-describedby="resolution-preview" /><select id="scale-unit" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
                   <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="scale-lock" type="checkbox" checked aria-label="全画像のアスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
@@ -78,11 +78,6 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
           <section class="panel settings-panel" aria-labelledby="settings-title">
             <div class="panel-header">
               <div class="panel-title"><h2 id="settings-title">変換設定</h2></div>
-              <div class="select-wrap">
-                <label class="sr-only" for="preset">プリセット</label>
-                <select id="preset" class="select preset-select"><option value="custom">カスタム</option><option value="web">Web 用 · 軽量</option><option value="archive">保存用 · 高品質</option><option value="social">SNS · 2048 px</option></select>
-                <Fragment set:html={icon('chevronDown', 14)} />
-              </div>
             </div>
             <div class="settings-body">
               <div class="field format-group">
