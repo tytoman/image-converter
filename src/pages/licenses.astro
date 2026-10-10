@@ -1,0 +1,193 @@
+---
+import "../styles.css";
+import { icon } from "../icons";
+
+const repository = "https://github.com/tytoman/image-converter";
+---
+
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <title>ライセンス・謝辞 — 画像変換</title>
+        <meta
+            name="description"
+            content="画像変換と同梱ソフトウェアのライセンス情報、ソースコードへの案内。"
+        />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    </head>
+    <body>
+        <div class="app">
+            <header class="titlebar">
+                <a class="brand" href="/" aria-label="画像変換 ホーム">
+                    <Fragment set:html={icon("image", 16)} />
+                    <span class="brand-name">画像変換</span>
+                </a>
+                <div class="titlebar-end">
+                    <a class="button subtle" href="/">
+                        アプリに戻る
+                    </a>
+                    <span class="titlebar-divider" aria-hidden="true"></span>
+                    <button
+                        id="theme-toggle"
+                        class="icon-button"
+                        type="button"
+                        aria-label="テーマを切り替え"
+                        data-tooltip="テーマを切り替え"
+                    >
+                        <Fragment
+                            set:html={icon("moon", 16, "theme-icon-moon")}
+                        />
+                        <Fragment
+                            set:html={icon("sun", 16, "theme-icon-sun")}
+                        />
+                    </button>
+                </div>
+            </header>
+            <main class="legal-page">
+                <h1>ライセンス・謝辞</h1>
+                <section aria-labelledby="app-license-heading">
+                    <h2 id="app-license-heading">アプリとソースコード</h2>
+                    <p>
+                        このアプリのオリジナル部分は GNU Affero General Public
+                        License v3.0 only（AGPL-3.0-only）で提供されています。
+                    </p>
+                    <p>
+                        このアプリをネットワーク経由で利用する方は、対応するソースコードを無料で取得できます。
+                    </p>
+                    <ul>
+                        <li>
+                            <a href={repository}>ソースコードリポジトリ</a>
+                        </li>
+                        <li>
+                            <a href={`${repository}/blob/main/LICENSE`}>
+                                AGPL-3.0 のライセンス本文
+                            </a>
+                        </li>
+                        <li>
+                            <a
+                                href={`${repository}/blob/main/docs/THIRD_PARTY.md`}
+                            >
+                                第三者ソフトウェアの一覧、ライセンスおよび著作権表示
+                            </a>
+                        </li>
+                    </ul>
+                    <p>
+                        配布している Wasm
+                        エンジンのソース、ビルド手順、第三者ソフトウェアのソーススナップショットとライセンス文書は、リポジトリに含まれています。
+                    </p>
+                </section>
+                <section aria-labelledby="third-party-heading">
+                    <h2 id="third-party-heading">第三者ソフトウェア</h2>
+                    <p>
+                        このアプリは複数のオープンソースソフトウェアを利用しています。MIT、Apache-2.0、BSD、LGPL、GPL、AGPL、MPL、SIL
+                        Open Font License
+                        など、それぞれのライセンスと著作権表示は第三者ライセンス一覧をご確認ください。
+                    </p>
+                    <p>
+                        <a
+                            href={`${repository}/tree/main/third-party-licenses`}
+                        >
+                            同梱ライセンス文書
+                        </a>{" "}
+                        ·{" "}
+                        <a href={`${repository}/tree/main/third-party-sources`}>
+                            コピーレフト対象ライブラリのソーススナップショット
+                        </a>
+                    </p>
+                    <p>
+                        第三者ソフトウェアは各ライセンスの条件で提供されます。このページの記載は、それら個別のライセンス条件を変更しません。
+                    </p>
+                </section>
+            </main>
+            <footer class="app-footer legal-footer">
+                <a href="/">画像変換に戻る</a>
+                <a href={repository}>ソースコード</a>
+            </footer>
+        </div>
+        <script>
+            const toggle = document.getElementById("theme-toggle");
+            const root = document.documentElement;
+            const applyTheme = (theme: any) => {
+                if (theme === "light" || theme === "dark")
+                    root.setAttribute("data-theme", theme);
+                const current =
+                    root.getAttribute("data-theme") ||
+                    (window.matchMedia("(prefers-color-scheme: dark)").matches
+                        ? "dark"
+                        : "light");
+                toggle?.setAttribute(
+                    "aria-label",
+                    current === "dark"
+                        ? "ライトテーマに切り替え"
+                        : "ダークテーマに切り替え",
+                );
+            };
+            try {
+                applyTheme(localStorage.getItem("image-converter-theme"));
+            } catch {
+                applyTheme(null);
+            }
+            toggle?.addEventListener("click", () => {
+                const current =
+                    root.getAttribute("data-theme") ||
+                    (window.matchMedia("(prefers-color-scheme: dark)").matches
+                        ? "dark"
+                        : "light");
+                const next = current === "dark" ? "light" : "dark";
+                applyTheme(next);
+                try {
+                    localStorage.setItem("image-converter-theme", next);
+                } catch {
+                    /* Storage may be unavailable. */
+                }
+            });
+        </script>
+    </body>
+</html>
+
+<style>
+    .legal-page {
+        width: min(100% - 32px, 900px);
+        flex: 1;
+        margin: 32px auto;
+        padding: 24px;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--surface-default);
+    }
+    .legal-page h1 {
+        margin: 0 0 24px;
+        font-size: var(--text-xl);
+    }
+    .legal-page h2 {
+        margin: 28px 0 12px;
+        font-size: var(--text-lg);
+    }
+    .legal-page p,
+    .legal-page li {
+        color: var(--text-muted);
+        line-height: 1.7;
+    }
+    .legal-page a,
+    .legal-footer a {
+        color: var(--text-default);
+        text-underline-offset: 3px;
+    }
+    .legal-page li + li {
+        margin-top: 6px;
+    }
+    .legal-footer {
+        justify-content: flex-start;
+    }
+    @media (max-width: 720px) {
+        .legal-page {
+            padding: 16px;
+        }
+        .app-footer.legal-footer {
+            flex-direction: row;
+        }
+    }
+</style>

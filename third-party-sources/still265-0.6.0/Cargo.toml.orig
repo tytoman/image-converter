@@ -1,0 +1,45 @@
+[package]
+name = "still265"
+version.workspace = true
+edition = "2024"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Pure-Rust HEVC/H.265 still-image encoder with BPG and HEIC support"
+readme = "README.md"
+keywords = ["hevc", "h265", "heic", "bpg", "encoder"]
+categories = ["encoding", "multimedia::encoding"]
+# Keep the published source deliberately small: tests, benchmarks, local
+# measurement data, planning material, and vendored reference trees are not
+# needed to build or use the library.
+include = ["/src/**", "/LICENSE", "/README.md"]
+
+[dependencies]
+# These are the only external dependencies in the published crate.  The BPG,
+# HEIC and HEVC support modules live under `src/internal/` so consumers need
+# no unpublished companion packages.
+archmage = { version = "0.8", default-features = false, features = ["macros", "safe_unaligned_simd", "std"] }
+safe_unaligned_simd = "0.2"
+# Optional portable-SIMD backend for the hot primitive kernels (SSD, residual
+# subtraction, forward DCT). `wide` is pure Rust (no C/asm), so the default
+# build stays portable; enabling `wide-simd` only swaps in vectorized kernels
+# that are bit-identical to the scalar reference. See `src/primitives/`.
+wide = { version = "1.3" }
+rayon = { version = "1.10", optional = true }
+
+[features]
+default = ["std", "wide-simd"]
+std = []
+# Marker feature for profiling builds. Keep profiling-only instrumentation
+# behind this feature if it would perturb normal release measurements.
+flamegraph = []
+# Counts forward-DCT calls per transform size (4/8/16/32) and exposes them via
+# `primitives::wide::dct_size_histogram()`. Off by default — the per-call
+# atomic increment perturbs ForwardXform measurements. Enable for profiling
+# the transform-size distribution.
+dct-histogram = []
+# Enable the wide-SIMD portable kernel layer (default). Disable with
+# `--no-default-features` to build a fully scalar binary (useful for testing
+# the scalar reference path without the BPG_PRIMITIVES env override).
+wide-simd = []
+rayon = ["dep:rayon"]
