@@ -1,35 +1,37 @@
-# Format support and limits
+# 対応形式と制限
 
-The browser engine handles files locally. This page describes the current implementation, rather than promising support for every variant of a listed format. Decoder errors are surfaced per file; a file extension by itself does not guarantee that its contents can be decoded.
+このページでは、ブラウザー内で動作する変換エンジンの現行実装を説明します。形式名は、その形式のすべての仕様や派生形式に対応することを保証するものではありません。読み込みに失敗した場合はファイルごとにエラーが表示されます。拡張子だけでは、内容を読み込めるとは限りません。
 
-## Input formats
+## 入力形式
 
-| Input | Current behavior and limits |
+| 入力形式 | 現在の動作と制限 |
 |---|---|
-| PNG, JPEG/JPG, BMP | Decoded as one raster image. APNG frames are exposed as separate still images. JPEG output composites transparency onto white. |
-| WebP | Still and animated WebP frames can be selected and converted separately as still images. |
-| GIF | Frames are enumerated and can be selected or converted separately as static images. Frame count is capped at 1,000; each decoded frame is subject to the image dimension limits. |
-| TIFF/TIF | Pages can be enumerated and selected separately. The extra TIFF decoder handles common integer grayscale, grayscale-alpha, RGB, RGBA, and palette pages at 8 or 16 bits per sample; 16-bit indexed palettes and uncommon sample/color layouts (including floating-point, CMYK, YCbCr, Lab, and multiband) are rejected. |
-| HEIF/HEIC | The decoder reads visible HEVC still-image items in still-image containers, with the primary item first; the UI can select additional items individually. Grid tiles, auxiliary images, thumbnails, and hidden items are omitted. Sequence-branded HEIF files are rejected. This is a practical subset, not full HEIF conformance. |
-| AVIF/AVIFS | Still images and AV1 sequence frames are exposed for separate still-image conversion. Frame enumeration and decoding use the bundled pure-Rust decoder and prefer 8-bit output. Actual coverage depends on the AV1 features supported by that decoder. |
-| CR2, NEF, ARW | `rawloader` must recognize the camera encoding. The app makes a simple 8-bit preview using a small-neighborhood CFA interpolation and white-balance coefficients. It does not apply a camera color profile or provide professional RAW development controls, so colors and tone can differ from a camera manufacturer's software. |
-| PSD | The merged composite is converted to raster RGBA; layers, masks, and editable Photoshop structure are not preserved. |
-| PDF | Pages are rendered independently by the bundled Rust renderer at its default page scale. Page size, fonts, transparency, and advanced PDF features can affect rendering; there is no resolution control for the PDF rasterization step. |
-| AI | Only a PDF-compatible AI file whose content begins with a `%PDF-` header is accepted. It follows the PDF page-rendering path. PostScript-only Illustrator files are not supported. |
-| DICOM/DCM | `NumberOfFrames` is used for frame selection (missing means one frame), with a 1,000-frame limit. The enabled pure-Rust decoder covers native pixel data, JPEG, RLE, and deflated transfer syntaxes. JPEG-LS and JPEG 2000 support is not enabled; unsupported transfer syntaxes fail with an explanation. |
-| SVG | Parsed and rasterized offline by the bundled renderer, with a 16 MiB SVG document limit. External `href` resources and embedded SVG images are omitted. Embedded PNG/JPEG/GIF/WebP data images are limited to 8 MiB each, with at most 40 million decoded pixels in total. Text rendering uses the bundled Noto Sans font; glyphs outside its coverage may be missing. Convert text to paths in the source SVG for consistent rendering. |
-| EXR, HDR | Linear RGB is converted to 8-bit sRGB; values are clamped to [0, 1], so out-of-range highlights are clipped. Non-finite values become zero. EXR uses the first supported non-deep RGB/RGBA layer; layers and HDR precision are not retained. |
-| JXL | Decoded by the bundled JPEG XL decoder; coverage depends on supported codestream features. Animated JXL files expose keyframes for individual still-image conversion, up to 1,000 frames. Decoding requests sRGB output; CMYK is rejected and arbitrary ICC profile transforms are not supported. Decoder-tracked internal allocation is capped at 512 MiB; this does not account for every application allocation. |
-| TGA | Decoded as raster RGBA where the input encoding is supported. |
+| PNG、JPEG/JPG、BMP | 1枚のラスター画像として読み込みます。APNGはフレームを個別の静止画像として選択できます。JPEG出力では透過部分を白で合成します。 |
+| WebP | 静止画とアニメーションの各フレームを選択し、静止画像として個別に変換できます。 |
+| GIF | フレームを列挙し、選択したフレームを静止画像として変換できます。最大1,000フレームです。各フレームには画像サイズ制限が適用されます。 |
+| TIFF/TIF | ページを列挙して個別に選択できます。ページ数は最大1,000です。追加のTIFFデコーダーは、一般的な整数型のグレースケール、グレースケール＋アルファ、RGB、RGBA、パレット画像（1サンプルあたり8または16ビット）を扱います。16ビットのインデックス付きパレット、および浮動小数点、CMYK、YCbCr、Lab、多バンドを含む一般的でないサンプル形式・色形式には対応しません。 |
+| HEIF/HEIC | 静止画コンテナー内の表示対象となるHEVC静止画像アイテムを読み込みます。プライマリーアイテムを先頭に表示し、UIから追加アイテムも個別に選択できます。グリッドタイル、補助画像、サムネイル、非表示アイテムは対象外です。シーケンス形式として識別されるHEIFは拒否します。HEIF全仕様への対応ではなく、実用上の一部対応です。 |
+| AVIF/AVIFS | 静止画とAV1シーケンスの各フレームを個別の静止画像として変換できます。同梱のRust製デコーダーで列挙・デコードし、8ビット出力を優先します。実際に読み込める範囲はデコーダーが対応するAV1機能に依存します。 |
+| CR2、NEF、ARW | `rawloader` がカメラ形式を認識できるファイルを対象とします。近傍画素を使う簡易CFA補間とホワイトバランス係数で、8ビットのプレビュー画像を作ります。カメラ用カラープロファイルや本格的なRAW現像機能はなく、メーカー純正ソフトと色や階調が異なる場合があります。 |
+| PSD | 統合画像をラスターRGBAに変換します。レイヤー、マスク、編集可能なPhotoshop構造は保持しません。 |
+| PDF | 同梱のRust製レンダラーで、ページごとに既定のページ倍率で画像化します。ページサイズ、フォント、透過、PDFの高度な機能によって描画結果が変わることがあります。PDF画像化の解像度は指定できません。 |
+| AI | 内容が`%PDF-`ヘッダーで始まるPDF互換AIファイルのみ受け付け、PDFと同じ経路でページを描画します。PostScriptのみのIllustratorファイルには対応しません。 |
+| DICOM/DCM | フレーム選択には`NumberOfFrames`を使います。項目がない場合は1フレームとして扱い、最大1,000フレームです。有効化されたRust製デコーダーで、ネイティブ画素データ、JPEG、RLE、deflated転送構文を扱います。JPEG-LSとJPEG 2000のデコードは有効化されていません。未対応の転送構文はエラーになります。 |
+| SVG | 同梱レンダラーでオフライン解析・画像化します。SVG文書は最大16 MiBです。外部`href`リソースと埋め込みSVG画像は読み込みません。埋め込みPNG/JPEG/GIF/WebPデータ画像は1件あたり最大8 MiBで、合計デコード画素数は最大4,000万画素です。文字描画には同梱のNoto Sansを使うため、フォントにない字形は欠落する場合があります。表示を安定させるには、元のSVGで文字をパスに変換してください。 |
+| EXR、HDR | 線形RGBを8ビットsRGBに変換します。値は[0, 1]に制限されるため、範囲外のハイライトはクリップされます。有限でない値は0になります。EXRは対応する最初の非deep RGB/RGBAレイヤーを使い、レイヤーとHDR精度は保持しません。 |
+| JXL | 同梱のJPEG XLデコーダーで読み込みます。対応範囲はcodestream機能に依存します。アニメーションJXLはキーフレームを個別の静止画像として扱い、最大1,000フレームです。フレーム列挙には4,000万画素の上限も適用されます。デコード時はsRGB出力を要求します。CMYKと任意のICCプロファイル変換には対応しません。デコーダーが追跡する内部割り当ては最大512 MiBですが、アプリ全体の割り当てを制限する値ではありません。JXL入力ファイルには別途64 MiBの上限があります。 |
+| TGA | 入力エンコードがデコーダーに対応するものをラスターRGBAとして読み込みます。 |
 
-## Output formats and settings
+## 出力形式と設定
 
-PNG, JPEG, BMP, GIF, TIFF, WebP, AVIF, HEIF, HEIC, JXL, and TGA are exposed as outputs. JXL output is lossless and does not use the quality control; its encoder requires both output dimensions to be at least 2 px; TGA output writes RGBA pixels and does not use the compression or quality controls. Every output is a single still image. Selecting multiple input pages or frames creates separate files; GIF output is static and does not preserve animation. HEIF/HEIC output uses the bundled HEVC still-image encoder. WebP output is lossless. JPEG, AVIF, and HEIF/HEIC accept a quality value. PNG accepts a compression level. BMP, GIF, TIFF, and WebP do not use the UI compression control in the current engine.
+出力形式はPNG、JPEG、BMP、GIF、TIFF、WebP、AVIF、HEIF、HEIC、JXL、TGAです。JXL出力は可逆で、品質設定を使いません。また、出力画像の幅と高さが両方とも2 px以上必要です。TGA出力はRGBA画素を書き出し、圧縮・品質設定を使いません。出力はすべて静止画像です。入力で複数のページやフレームを選ぶと、それぞれ別ファイルになります。GIF出力も静止画像で、アニメーションを保持しません。HEIF/HEIC出力には同梱のHEVC静止画像エンコーダーを使います。WebP出力は可逆です。JPEG、AVIF、HEIF/HEICは品質値を受け付けます。PNGは圧縮レベルを受け付けます。現在のエンジンではBMP、GIF、TIFF、WebPはUIの圧縮設定を使いません。
 
-Alpha handling depends on the output format. JPEG composites onto white; formats encoded through the engine's RGBA raster path preserve alpha where the encoder supports it. HEIF/HEIC encoding currently passes RGB pixels to its encoder and discards alpha.
+アルファの扱いは出力形式によって異なります。JPEGは透過部分を白で合成します。エンジンのRGBAラスター経路を使う形式は、エンコーダーが対応する場合にアルファを保持します。HEIF/HEICエンコードは現在RGB画素を渡すため、アルファを破棄します。
 
-The engine rejects files above 128 MiB, images above 80 million pixels, or either dimension above 16,384 pixels. A conversion run stores up to 256 MiB of generated files, and ZIP download is limited to 256 MiB of uncompressed output. These are software limits, not a guarantee that every file within them fits a browser's available memory. An 80-million-pixel RGBA image alone occupies about 305 MiB, before decoder and conversion buffers; some format parsers allocate intermediate buffers before the final raster size is known.
+## 共通の処理上限
 
-## Validation scope
+エンジンは128 MiBを超える入力ファイル、8,000万画素を超える画像、または幅・高さのいずれかが16,384 pxを超える画像を拒否します。1回の変換で保持する生成ファイルは合計256 MiBまでで、ZIPダウンロードは非圧縮サイズ256 MiBまでです。これはソフトウェア上の上限であり、上限内のファイルがブラウザーのメモリーで必ず処理できることを保証しません。8,000万画素のRGBA画像だけでも、デコード・変換用バッファーを除いて約305 MiBを使います。形式によっては、最終画像サイズが分かる前にパーサーが中間バッファーを確保する場合もあります。
 
-The repository includes targeted tests and local fixtures for representative formats. It has not been validated against every camera model, PDF feature, DICOM transfer syntax, color profile, bit depth, or browser memory configuration. Treat support for other variants as best effort and rely on the per-file decode result.
+## 検証範囲
+
+リポジトリには、代表的な形式を対象とする限定的なテストとローカルフィクスチャがあります。すべてのカメラ機種、PDF機能、DICOM転送構文、カラープロファイル、ビット深度、ブラウザーのメモリー構成を検証したものではありません。記載範囲外の形式・機能はベストエフォートとして扱い、個別ファイルの読み込み結果を確認してください。

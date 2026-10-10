@@ -21,7 +21,11 @@ const repository = 'https://github.com/tytoman/image-converter';
           <Fragment set:html={icon('image', 16)} />
           <span class="brand-name">画像変換</span>
         </a>
-        <a class="button subtle" href="/">アプリに戻る</a>
+        <div class="titlebar-end">
+          <a class="button subtle" href="/">アプリに戻る</a>
+          <span class="titlebar-divider" aria-hidden="true"></span>
+          <button id="theme-toggle" class="icon-button" type="button" aria-label="テーマを切り替え" data-tooltip="テーマを切り替え"><Fragment set:html={icon('moon', 16, 'theme-icon-moon')} /><Fragment set:html={icon('sun', 16, 'theme-icon-sun')} /></button>
+        </div>
       </header>
       <main class="legal-page">
         <h1>ライセンス・謝辞</h1>
@@ -48,11 +52,27 @@ const repository = 'https://github.com/tytoman/image-converter';
         <a href={repository}>ソースコード</a>
       </footer>
     </div>
+    <script>
+      const toggle = document.getElementById('theme-toggle');
+      const root = document.documentElement;
+      const applyTheme = (theme) => {
+        if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
+        const current = root.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        toggle?.setAttribute('aria-label', current === 'dark' ? 'ライトテーマに切り替え' : 'ダークテーマに切り替え');
+      };
+      try { applyTheme(localStorage.getItem('image-converter-theme')); } catch { applyTheme(null); }
+      toggle?.addEventListener('click', () => {
+        const current = root.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const next = current === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        try { localStorage.setItem('image-converter-theme', next); } catch { /* Storage may be unavailable. */ }
+      });
+    </script>
   </body>
 </html>
 
 <style>
-  .legal-page { width: min(100% - 32px, 900px); margin: 32px auto; padding: 24px; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-default); }
+  .legal-page { width: min(100% - 32px, 900px); flex: 1; margin: 32px auto; padding: 24px; border: 1px solid var(--border-default); border-radius: var(--radius-lg); background: var(--surface-default); }
   .legal-page h1 { margin: 0 0 24px; font-size: var(--text-xl); }
   .legal-page h2 { margin: 28px 0 12px; font-size: var(--text-lg); }
   .legal-page p, .legal-page li { color: var(--text-muted); line-height: 1.7; }
