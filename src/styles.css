@@ -718,7 +718,7 @@
 @layer components {
   /* Workspace をビューポート全体に広げ、一覧は Panel 内でスクロールさせる */
   .layout { max-width: calc(1000px + 320px + var(--space-12) * 3); grid-template-columns: minmax(0, 1fr) 320px; padding: var(--space-12); gap: var(--space-12); align-items: start; }
-  .main-col { width: 100%; max-width: 1000px; position: sticky; top: calc(40px + var(--space-12)); height: calc(100dvh - 40px - var(--space-12) * 2); }
+  .main-col { width: 100%; max-width: 1000px; position: sticky; top: calc(40px + var(--space-12)); height: calc(100dvh - 40px - var(--space-12) * 2 - 52px); }
   .workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .workspace .drop-zone { flex: 1; min-height: 240px; }
   .workspace .file-list-wrap { flex: 1; min-height: 0; overflow: auto; }

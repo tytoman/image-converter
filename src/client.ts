@@ -645,13 +645,7 @@ function updateResolutionUI() {
   const x = scaleXInput.valueAsNumber; const y = scaleYInput.valueAsNumber;
   scaleXInput.setAttribute('aria-invalid', String(!validScale(x, unit))); scaleYInput.setAttribute('aria-invalid', String(!validScale(y, unit)));
   if (!validScale(x, unit) || !validScale(y, unit)) { preview.textContent = unit === 'px' ? '\u5bf8\u6cd5\u306f1\u301c' + maxDimension.toLocaleString() + ' px\u306e\u6574\u6570\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002' : '\u500d\u7387\u306f1\u301c1000%\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002'; return; }
-  const referenceItem = items.find((item) => item.meta && !item.error); const meta = referenceItem?.meta;
-  if (!meta) { preview.textContent = '\u753b\u50cf\u3092\u8ffd\u52a0\u3059\u308b\u3068\u51fa\u529b\u5bf8\u6cd5\u3092\u8868\u793a\u3057\u307e\u3059\u3002'; return; }
-  let previewX = x; let previewY = y;
-  if (draftGlobalScale.locked && unit === 'px') { if (draftGlobalScale.anchor === 'x') previewY = Math.max(1, Math.round(previewX * meta.height / meta.width)); else previewX = Math.max(1, Math.round(previewY * meta.width / meta.height)); }
-  const dims = scaleToPixels(meta, previewX, previewY, unit);
-  const withinLimits = Boolean(dims.width && dims.height && dims.width <= maxDimension && dims.height <= maxDimension && dims.width * dims.height <= maxPixels);
-  preview.textContent = withinLimits ? '\u5148\u982d\u306e\u753b\u50cf: ' + dims.width!.toLocaleString() + ' \u00d7 ' + dims.height!.toLocaleString() + ' px' + (items.length > 1 ? ' \u30fb \u5404\u753b\u50cf\u306e\u5143\u30b5\u30a4\u30ba\u3092\u57fa\u6e96\u306b\u8a08\u7b97' : '') : '\u51fa\u529b\u5bf8\u6cd5\u304c\u4e0a\u9650\u3092\u8d85\u3048\u3066\u3044\u307e\u3059\u3002\u500d\u7387\u3092\u4e0b\u3052\u3066\u304f\u3060\u3055\u3044\u3002';
+  preview.textContent = '';
 }
 
 function getGlobalScaleCandidates(): { candidates?: Map<Item, GlobalScale>; error?: string } {
