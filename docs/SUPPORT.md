@@ -28,7 +28,7 @@ PNG, JPEG, BMP, GIF, TIFF, WebP, AVIF, HEIF, HEIC, JXL, and TGA are exposed as o
 
 Alpha handling depends on the output format. JPEG composites onto white; formats encoded through the engine's RGBA raster path preserve alpha where the encoder supports it. HEIF/HEIC encoding currently passes RGB pixels to its encoder and discards alpha.
 
-The engine rejects files above 64 MiB, images above 40 million pixels, or either dimension above 16,384 pixels. A conversion run stores up to 256 MiB of generated files, and ZIP download is limited to 256 MiB of uncompressed output. These are software limits, not a guarantee that every file within them fits a browser's available memory. Some format parsers allocate intermediate buffers before the final raster size is known.
+The engine rejects files above 128 MiB, images above 80 million pixels, or either dimension above 16,384 pixels. A conversion run stores up to 256 MiB of generated files, and ZIP download is limited to 256 MiB of uncompressed output. These are software limits, not a guarantee that every file within them fits a browser's available memory. An 80-million-pixel RGBA image alone occupies about 305 MiB, before decoder and conversion buffers; some format parsers allocate intermediate buffers before the final raster size is known.
 
 ## Validation scope
 

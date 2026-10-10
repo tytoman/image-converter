@@ -8,7 +8,7 @@
 use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
 use std::io::Cursor;
 
-const MAX_PIXELS: u64 = 40_000_000;
+const MAX_PIXELS: u64 = 80_000_000;
 const MAX_DIMENSION: u32 = 16_384;
 
 /// Decode a Photoshop PSD composite image from bytes.

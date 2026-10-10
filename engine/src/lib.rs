@@ -11,8 +11,8 @@ use serde_json::json;
 use std::io::Cursor;
 use wasm_bindgen::prelude::*;
 
-const MAX_BYTES: usize = 64 * 1024 * 1024;
-const MAX_PIXELS: u64 = 40_000_000;
+const MAX_BYTES: usize = 128 * 1024 * 1024;
+const MAX_PIXELS: u64 = 80_000_000;
 const MAX_DIMENSION: u32 = 16_384;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

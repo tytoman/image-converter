@@ -68,8 +68,8 @@ let cancelling = false;
 let taskItem: Item | undefined;
 let resultsOpen = false;
 let unique = 0;
-const maxFileBytes = 64 * 1024 * 1024;
-const maxPixels = 40_000_000;
+const maxFileBytes = 128 * 1024 * 1024;
+const maxPixels = 80_000_000;
 const maxDimension = 16_384;
 const maxFramesPerFile = 100_000;
 const maxStoredOutputBytes = 256 * 1024 * 1024;
@@ -313,7 +313,7 @@ async function addFiles(files: FileList | File[]) {
 
   for (const item of added) {
     if (item.file.size > maxFileBytes) {
-      item.error = `64 MB を超えています (${fileSize(item.file.size)})`;
+      item.error = `128 MB を超えています (${fileSize(item.file.size)})`;
       item.status = 'サイズ超過';
       renderItems();
       continue;
@@ -580,10 +580,10 @@ function renderItems() {
   );
 
   if (!has) {
-    $('file-hint').textContent = '64 MB / ファイル · 最大 40 MP · 最大寸法 16,384 px';
+    $('file-hint').textContent = '128 MB / ファイル · 最大 80 MP · 最大寸法 16,384 px';
   } else {
     const pageCount = items.reduce((n, item) => n + getFrameIndexes(item).length, 0);
-    $('file-hint').textContent = `合計 ${pageCount} 枚を選択中 · 64 MB / ファイル · 40 MP まで`;
+    $('file-hint').textContent = `合計 ${pageCount} 枚を選択中 · 128 MB / ファイル · 80 MP まで`;
   }
 }
 
