@@ -43,6 +43,7 @@ try {
         $relative = [Uri]::UnescapeDataString(($Matches[2] -split '\?')[0]).TrimStart('/').Replace('/', [IO.Path]::DirectorySeparatorChar)
         if (!$relative) { $relative = 'index.html' }
         $path = [IO.Path]::GetFullPath((Join-Path $root $relative))
+        if ((Test-Path -LiteralPath $path -PathType Container)) { $path = Join-Path $path 'index.html' }
         if (!$path.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { $status = '403 Forbidden' }
         elseif (!(Test-Path -LiteralPath $path -PathType Leaf)) { $status = '404 Not Found' }
         else {
