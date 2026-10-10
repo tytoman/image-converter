@@ -928,7 +928,7 @@ async function convertAll() {
         $('progress-label').textContent = `${complete} / ${total} 枚 · ${item.file.name}`;
         $('progress-percent').textContent = `${pct}%`;
         const bar = $('progress-bar');
-        bar.style.width = `${pct}%`;
+        bar.dataset.progress = String(pct);
         bar.parentElement?.setAttribute('aria-valuenow', String(pct));
         renderResults();
       }
@@ -1060,7 +1060,7 @@ function updateQuality() {
   const max = Number(quality.max) || 100;
   const val = Number(quality.value);
   const fillPct = Math.round(((val - min) / (max - min)) * 100);
-  quality.style.setProperty('--fill', `${fillPct}%`);
+  quality.dataset.fill = String(fillPct);
   updateControls();
 }
 
@@ -1085,18 +1085,10 @@ function setupTooltips() {
     }
     tooltipEl.innerHTML = `<span>${escapeHtml(tip)}</span>${kbdHtml}`;
     tooltipEl.hidden = false;
-
     const rect = el.getBoundingClientRect();
-    const tipRect = tooltipEl.getBoundingClientRect();
-    let top = rect.bottom + 6;
-    let left = rect.left + rect.width / 2 - tipRect.width / 2;
-
-    if (top + tipRect.height > window.innerHeight) top = rect.top - tipRect.height - 6;
-    if (left < 8) left = 8;
-    if (left + tipRect.width > window.innerWidth - 8) left = window.innerWidth - tipRect.width - 8;
-
-    tooltipEl.style.top = `${Math.round(top)}px`;
-    tooltipEl.style.left = `${Math.round(left)}px`;
+    tooltipEl.classList.toggle('tooltip-at-top', rect.top > window.innerHeight / 2);
+    tooltipEl.classList.toggle('tooltip-at-left', rect.left < window.innerWidth / 3);
+    tooltipEl.classList.toggle('tooltip-at-right', rect.right > (window.innerWidth * 2) / 3);
   }
 
   function hide() {

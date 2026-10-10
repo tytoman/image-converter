@@ -41,3 +41,19 @@ C863C37BDD4AC18712B03B154776A99638EBFDF6D1F669247B5C30AE12F81D51
 ブラウザーのオフライン設定は初期読み込み後の実行テストです。コールドスタートではブラウザーから同梱ファイルをローカルHTTPで読み込みます。ローカルHTTP配信にインターネット接続は必要ありません。
 
 CR2 / NEF / ARW はRustデコーダーと簡易現像を実装していますが、実機カメラのRAWコーパスによる検証は行っていません。すべての形式の全バリエーション、全ブラウザー、40MPの上限付近を網羅した検証ではありません。具体的な制約は [SUPPORT.md](SUPPORT.md) を参照してください。
+
+## CSP verification specification
+
+The CSP meta policy in `src/pages/index.astro` and the HTTP response policy in `scripts/serve.ps1` restrict CSP-governed resource and API requests to same-origin destinations. `default-src 'none'` is the baseline. The allowlist is limited to same-origin scripts, styles, and WASM retrieval; `blob:` for local generated-image previews; and local workers. `data:`, inline styles, form submission, external images, and external fonts are not allowed. `connect-src 'self'` is required to retrieve the WASM file. `frame-ancestors 'none'` is applied by the HTTP header because meta policies cannot set it. CSP does not reliably block top-level browser navigation; that path is checked separately by source inspection and the bounded procedure below.
+
+### Bounded evidence procedure
+
+1. Build with `npm run build`, then serve with `scripts/serve.ps1`. Open browser DevTools Network, enable Preserve log, and reload. Confirm requests go only to `127.0.0.1`; repeat through image conversion, generated preview, and download. This is evidence for that browser and run, not proof about future code, browser extensions, or other processes.
+2. Inspect the Document response headers and HTML meta tag. Confirm `default-src 'none'`, `connect-src 'self'`, `img-src 'self' blob:`, `style-src 'self'`, and `style-src-attr 'none'` in both. Confirm the HTTP response also has `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer`.
+3. In the app document's execution context, use DevTools Console or an isolated test page to try an external stylesheet, CSS `@import`, CSS `url(https://...)`, external image, external font, `fetch`, XHR, WebSocket, `sendBeacon`, external Worker, media, iframe, object, and form submission. For each CSP-governed attempt, confirm a CSP violation appears and no corresponding external request appears in Network. Confirm the blocked form does not navigate.
+4. Confirm generated `blob:` image previews still render. Preview a user SVG containing external image, stylesheet, and font references; check Network for no requests to those origins. Also confirm `data:` images, inline style attributes, and JS writes that create style attributes are blocked. The app's dynamic visual state must use CSS classes or finite `data-fill` / `data-progress` values rather than writing arbitrary values to style attributes.
+5. Search the shipped application HTML and JavaScript for external anchors, `location` assignments, `window.open`, and navigation-producing APIs. Confirm none are present. In an isolated test page, also try an external link and `window.location` navigation to document that browsers may navigate despite CSP; these are outside the CSP request-blocking guarantee. If policy requires blocking all external navigation, enforce it at a browser or network boundary and verify there.
+
+### Scope and limits
+
+The policy makes the browser reject CSP-governed app-document resource/API requests to external origins. It does not prove that no network traffic of any kind occurs: browser navigation, browser update traffic, extensions, and other tabs or processes are outside this guarantee. The `scripts/serve.ps1` built-app path enforces the policy with an HTTP header. Astro `dev` and `preview` are not configured with the same response header, so their checks cover only the meta policy and do not verify the HTTP-header configuration.

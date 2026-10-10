@@ -11,7 +11,7 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
     <meta name="theme-color" content="#f3f3f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'none'; img-src 'self' blob:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
     <title>画像変換 — ローカルで安全に変換</title>
     <meta name="description" content="画像をブラウザー内で変換。ファイルは端末の外へ送信されません。" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />

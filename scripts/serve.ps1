@@ -52,7 +52,8 @@ try {
         }
       }
       if ($status -ne '200 OK') { $data = [Text.Encoding]::UTF8.GetBytes($status) }
-      $response = "HTTP/1.1 $status`r`nContent-Type: $type`r`nContent-Length: $($data.Length)`r`nConnection: close`r`nCache-Control: no-store`r`nX-Content-Type-Options: nosniff`r`nReferrer-Policy: no-referrer`r`n`r`n"
+      $csp = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'none'; img-src 'self' blob:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+      $response = "HTTP/1.1 $status`r`nContent-Type: $type`r`nContent-Length: $($data.Length)`r`nConnection: close`r`nCache-Control: no-store`r`nContent-Security-Policy: $csp`r`nX-Content-Type-Options: nosniff`r`nReferrer-Policy: no-referrer`r`n`r`n"
       $bytes = [Text.Encoding]::ASCII.GetBytes($response)
       $stream.Write($bytes, 0, $bytes.Length)
       if (!$head) { $stream.Write($data, 0, $data.Length) }
