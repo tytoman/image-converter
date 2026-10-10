@@ -1,144 +1,560 @@
 ---
-import { icon } from '../icons';
+import { icon } from "../icons";
 
-const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC', 'TIFF/TIF', 'BMP', 'CR2', 'NEF', 'ARW', 'PSD', 'AI', 'PDF', 'DICOM/DCM', 'SVG', 'EXR', 'HDR', 'JXL', 'TGA'];
+const inputFormats = [
+    "PNG",
+    "JPEG/JPG",
+    "WebP",
+    "GIF",
+    "AVIF/AVIFS",
+    "HEIF/HEIC",
+    "TIFF/TIF",
+    "BMP",
+    "CR2",
+    "NEF",
+    "ARW",
+    "PSD",
+    "AI",
+    "PDF",
+    "DICOM/DCM",
+    "SVG",
+    "EXR",
+    "HDR",
+    "JXL",
+    "TGA",
+];
 ---
+
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f3f3f3" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
-    <meta name="color-scheme" content="light dark" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'none'; img-src 'self' blob:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
-    <title>画像変換 — ローカルで安全に変換</title>
-    <meta name="description" content="画像をブラウザー内で変換。ファイルは端末の外へ送信されません。" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  </head>
-  <body>
-    <div class="app">
-      <header class="titlebar">
-        <a class="brand" href="#top" aria-label="画像変換 ホーム">
-          <Fragment set:html={icon('image', 16)} />
-          <span class="brand-name">画像変換</span>
-        </a>
-        <div class="titlebar-end">
-          <span id="engine-state" class="engine-state" data-tooltip="変換エンジンを確認中"><i aria-hidden="true"></i><span class="engine-label">変換エンジンを確認中</span></span>
-          <span class="titlebar-divider" aria-hidden="true"></span>
-          <button id="theme-toggle" class="icon-button" type="button" aria-label="テーマを切り替え" data-tooltip="テーマを切り替え"><Fragment set:html={icon('moon', 16, 'theme-icon-moon')} /><Fragment set:html={icon('sun', 16, 'theme-icon-sun')} /></button>
-        </div>
-      </header>
-
-      <main class="layout" id="top">
-        <h1 class="sr-only">画像変換</h1>
-
-        <div class="main-col">
-          <section class="panel workspace" aria-labelledby="files-title">
-            <div class="panel-header">
-              <div class="panel-title"><h2 id="files-title">画像</h2><span id="file-count" class="count">0 件</span></div>
-              <div class="panel-actions">
-
-                <button id="clear-files" class="button subtle" type="button" disabled aria-label="すべて削除" data-tooltip="すべて削除"><Fragment set:html={icon('trash', 14)} /><span class="label-long">すべて削除</span></button>
-                <button id="add-files" class="button outlined" type="button" data-tooltip="ファイルを追加" data-kbd="Mod O"><Fragment set:html={icon('plus', 14)} />ファイルを追加</button>
-                <input id="file-input" type="file" multiple hidden accept=".png,.jpg,.jpeg,.webp,.heif,.heic,.bmp,.tif,.tiff,.gif,.avif,.cr2,.nef,.arw,.psd,.ai,.pdf,.dcm,.dicom,.svg,.exr,.hdr,.jxl,.tga" />
-              </div>
-            </div>
-
-            <div id="drop-zone" class="drop-zone" role="group" aria-label="画像ファイルの追加">
-              <Fragment set:html={icon('download', 24, 'drop-icon')} />
-              <div class="drop-copy">
-                <strong>画像をここにドロップ</strong>
-                <span>または <button id="browse-inline" class="text-button" type="button">ファイルを選択</button><span class="shortcut-sep" aria-hidden="true">·</span><span class="shortcut" aria-label="ショートカット Ctrl O"><kbd data-mod>Ctrl</kbd><kbd>O</kbd></span></span>
-              </div>
-              <p class="drop-formats">{inputFormats.join(', ')}</p>
-            </div>
-
-            <div id="file-list-wrap" class="file-list-wrap" hidden>
-              <div class="list-head"><span>入力</span><span class="column-heading"><span>サイズ</span><button id="global-size-toggle" class="icon-button column-action" type="button" aria-label="全画像のサイズを設定" data-tooltip="全画像のサイズを設定" aria-expanded="false" aria-controls="global-size-panel"><Fragment set:html={icon('chevronDown', 14, 'global-size-chevron')} /></button></span><span>出力</span><span aria-hidden="true"></span></div>
-              <div class="global-size-panel resolution-group" id="global-size-panel" hidden role="region" aria-labelledby="scale-heading">
-                <div id="scale-heading" class="field-label scale-heading" data-tooltip="全画像のサイズ"><span>全画像のサイズ</span></div>
-                <div class="resolution-row">
-                  <div class="dimension" data-tooltip="横の出力寸法"><span>横</span><input id="scale-x" type="number" min="1" max="1000" step="any" value="100" aria-label="全画像の横の倍率" aria-describedby="resolution-preview" /><select id="scale-unit" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
-                  <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="scale-lock" type="checkbox" checked aria-label="全画像のアスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
-                  <div class="dimension" data-tooltip="縦の出力寸法"><span>縦</span><input id="scale-y" type="number" min="1" max="1000" step="any" value="100" aria-label="全画像の縦の倍率" aria-describedby="resolution-preview" /><select class="scale-unit-peer" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+            name="theme-color"
+            content="#f3f3f3"
+            media="(prefers-color-scheme: light)"
+        />
+        <meta
+            name="theme-color"
+            content="#1a1a1a"
+            media="(prefers-color-scheme: dark)"
+        />
+        <meta name="color-scheme" content="light dark" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; style-src-attr 'none'; img-src 'self' blob:; worker-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+        />
+        <title>画像変換 — ローカルで安全に変換</title>
+        <meta
+            name="description"
+            content="画像をブラウザー内で変換。ファイルは端末の外へ送信されません。"
+        />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    </head>
+    <body>
+        <div class="app">
+            <header class="titlebar">
+                <a class="brand" href="#top" aria-label="画像変換 ホーム">
+                    <Fragment set:html={icon("image", 16)} />
+                    <span class="brand-name">画像変換</span>
+                </a>
+                <div class="titlebar-end">
+                    <span
+                        id="engine-state"
+                        class="engine-state"
+                        data-tooltip="変換エンジンを確認中"
+                    >
+                        <i aria-hidden="true"></i>
+                        <span class="engine-label">変換エンジンを確認中</span>
+                    </span>
+                    <span class="titlebar-divider" aria-hidden="true"></span>
+                    <button
+                        id="theme-toggle"
+                        class="icon-button"
+                        type="button"
+                        aria-label="テーマを切り替え"
+                        data-tooltip="テーマを切り替え"
+                    >
+                        <Fragment
+                            set:html={icon("moon", 16, "theme-icon-moon")}
+                        />
+                        <Fragment
+                            set:html={icon("sun", 16, "theme-icon-sun")}
+                        />
+                    </button>
                 </div>
-                <small id="scale-unit-note" class="field-note">1-1000% · ロック中は元の縦横比を維持</small>
-                <small id="resolution-preview" class="field-note">100% は元のサイズです。</small>
-                <button id="global-size-apply" class="button outlined" type="button">適用</button>
-              </div>
-              <div id="file-list" class="file-list" role="list" aria-label="追加したファイル"></div>
-            </div>
-            <div class="panel-footer"><span id="file-hint">最大ファイルサイズはブラウザーのメモリに依存します。</span><div id="results-panel" class="panel-actions" hidden><span id="result-count" class="count"></span><button id="download-all" class="button outlined" type="button" disabled data-tooltip="すべてを ZIP で保存" data-kbd="Mod S"><Fragment set:html={icon('archive', 14)} />ZIP で保存</button></div></div>
-          </section>
+            </header>
 
+            <main class="layout" id="top">
+                <h1 class="sr-only">画像変換</h1>
+
+                <div class="main-col">
+                    <section
+                        class="panel workspace"
+                        aria-labelledby="files-title"
+                    >
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <h2 id="files-title">画像</h2>
+                                <span id="file-count" class="count">
+                                    0 件
+                                </span>
+                            </div>
+                            <div class="panel-actions">
+                                <button
+                                    id="clear-files"
+                                    class="button subtle"
+                                    type="button"
+                                    disabled
+                                    aria-label="すべて削除"
+                                    data-tooltip="すべて削除"
+                                >
+                                    <Fragment set:html={icon("trash", 14)} />
+                                    <span class="label-long">すべて削除</span>
+                                </button>
+                                <button
+                                    id="add-files"
+                                    class="button outlined"
+                                    type="button"
+                                    data-tooltip="ファイルを追加"
+                                    data-kbd="Mod O"
+                                >
+                                    <Fragment set:html={icon("plus", 14)} />
+                                    ファイルを追加
+                                </button>
+                                <input
+                                    id="file-input"
+                                    type="file"
+                                    multiple
+                                    hidden
+                                    accept=".png,.jpg,.jpeg,.webp,.heif,.heic,.bmp,.tif,.tiff,.gif,.avif,.cr2,.nef,.arw,.psd,.ai,.pdf,.dcm,.dicom,.svg,.exr,.hdr,.jxl,.tga"
+                                />
+                            </div>
+                        </div>
+
+                        <div
+                            id="drop-zone"
+                            class="drop-zone"
+                            role="group"
+                            aria-label="画像ファイルの追加"
+                        >
+                            <Fragment
+                                set:html={icon("download", 24, "drop-icon")}
+                            />
+                            <div class="drop-copy">
+                                <strong>画像をここにドロップ</strong>
+                                <span>
+                                    または{" "}
+                                    <button
+                                        id="browse-inline"
+                                        class="text-button"
+                                        type="button"
+                                    >
+                                        ファイルを選択
+                                    </button>
+                                    <span
+                                        class="shortcut-sep"
+                                        aria-hidden="true"
+                                    >
+                                        ·
+                                    </span>
+                                    <span
+                                        class="shortcut"
+                                        aria-label="ショートカット Ctrl O"
+                                    >
+                                        <kbd data-mod>Ctrl</kbd>
+                                        <kbd>O</kbd>
+                                    </span>
+                                </span>
+                            </div>
+                            <p class="drop-formats">
+                                {inputFormats.join(", ")}
+                            </p>
+                        </div>
+
+                        <div id="file-list-wrap" class="file-list-wrap" hidden>
+                            <div class="list-head">
+                                <span>入力</span>
+                                <span class="column-heading">
+                                    <span>サイズ</span>
+                                    <button
+                                        id="global-size-toggle"
+                                        class="icon-button column-action"
+                                        type="button"
+                                        aria-label="全画像のサイズを設定"
+                                        data-tooltip="全画像のサイズを設定"
+                                        aria-expanded="false"
+                                        aria-controls="global-size-panel"
+                                    >
+                                        <Fragment
+                                            set:html={icon(
+                                                "chevronDown",
+                                                14,
+                                                "global-size-chevron",
+                                            )}
+                                        />
+                                    </button>
+                                </span>
+                                <span>出力</span>
+                                <span aria-hidden="true"></span>
+                            </div>
+                            <div
+                                class="global-size-panel resolution-group"
+                                id="global-size-panel"
+                                hidden
+                                role="region"
+                                aria-labelledby="scale-heading"
+                            >
+                                <div
+                                    id="scale-heading"
+                                    class="field-label scale-heading"
+                                    data-tooltip="全画像のサイズ"
+                                >
+                                    <span>全画像のサイズ</span>
+                                </div>
+                                <div class="resolution-row">
+                                    <div
+                                        class="dimension"
+                                        data-tooltip="横の出力寸法"
+                                    >
+                                        <span>横</span>
+                                        <input
+                                            id="scale-x"
+                                            type="number"
+                                            min="1"
+                                            max="1000"
+                                            step="any"
+                                            value="100"
+                                            aria-label="全画像の横の倍率"
+                                            aria-describedby="resolution-preview"
+                                        />
+                                        <select
+                                            id="scale-unit"
+                                            aria-label="全画像の寸法単位"
+                                        >
+                                            <option value="%">%</option>
+                                            <option value="px">px</option>
+                                        </select>
+                                    </div>
+                                    <label
+                                        class="aspect-lock"
+                                        data-tooltip="アスペクト比を維持"
+                                    >
+                                        <input
+                                            id="scale-lock"
+                                            type="checkbox"
+                                            checked
+                                            aria-label="全画像のアスペクト比を維持"
+                                        />
+                                        <Fragment
+                                            set:html={icon(
+                                                "link",
+                                                14,
+                                                "icon-link",
+                                            )}
+                                        />
+                                        <Fragment
+                                            set:html={icon(
+                                                "unlink",
+                                                14,
+                                                "icon-unlink",
+                                            )}
+                                        />
+                                    </label>
+                                    <div
+                                        class="dimension"
+                                        data-tooltip="縦の出力寸法"
+                                    >
+                                        <span>縦</span>
+                                        <input
+                                            id="scale-y"
+                                            type="number"
+                                            min="1"
+                                            max="1000"
+                                            step="any"
+                                            value="100"
+                                            aria-label="全画像の縦の倍率"
+                                            aria-describedby="resolution-preview"
+                                        />
+                                        <select
+                                            class="scale-unit-peer"
+                                            aria-label="全画像の寸法単位"
+                                        >
+                                            <option value="%">%</option>
+                                            <option value="px">px</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <small id="scale-unit-note" class="field-note">
+                                    1-1000% · ロック中は元の縦横比を維持
+                                </small>
+                                <small
+                                    id="resolution-preview"
+                                    class="field-note"
+                                >
+                                    100% は元のサイズです。
+                                </small>
+                                <button
+                                    id="global-size-apply"
+                                    class="button outlined"
+                                    type="button"
+                                >
+                                    適用
+                                </button>
+                            </div>
+                            <div
+                                id="file-list"
+                                class="file-list"
+                                role="list"
+                                aria-label="追加したファイル"
+                            ></div>
+                        </div>
+                        <div class="panel-footer">
+                            <span id="file-hint">
+                                最大ファイルサイズはブラウザーのメモリに依存します。
+                            </span>
+                            <div
+                                id="results-panel"
+                                class="panel-actions"
+                                hidden
+                            >
+                                <span id="result-count" class="count"></span>
+                                <button
+                                    id="download-all"
+                                    class="button outlined"
+                                    type="button"
+                                    disabled
+                                    data-tooltip="すべてを ZIP で保存"
+                                    data-kbd="Mod S"
+                                >
+                                    <Fragment set:html={icon("archive", 14)} />
+                                    ZIP で保存
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <aside class="inspector">
+                    <section
+                        class="panel settings-panel"
+                        aria-labelledby="settings-title"
+                    >
+                        <div class="panel-header">
+                            <div class="panel-title">
+                                <h2 id="settings-title">変換設定</h2>
+                            </div>
+                        </div>
+                        <div class="settings-body">
+                            <div class="field format-group">
+                                <div
+                                    id="output-format-label"
+                                    class="field-label"
+                                >
+                                    出力形式
+                                </div>
+                                <div
+                                    id="output-format"
+                                    class="format-grid"
+                                    role="radiogroup"
+                                    aria-labelledby="output-format-label"
+                                ></div>
+                                <small id="format-note" class="field-note">
+                                    利用可能な形式を確認しています。
+                                </small>
+                            </div>
+                            <div
+                                id="compression-group"
+                                class="field compression-group"
+                            >
+                                <div id="compression-label" class="field-label">
+                                    圧縮レベル
+                                </div>
+                                <div
+                                    id="compression"
+                                    class="segmented"
+                                    role="radiogroup"
+                                    aria-labelledby="compression-label"
+                                >
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="compression"
+                                            value="1"
+                                        />
+                                        <span>速い</span>
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="compression"
+                                            value="6"
+                                            checked
+                                        />
+                                        <span>標準</span>
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="compression"
+                                            value="9"
+                                        />
+                                        <span>高圧縮</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="quality-group" class="field quality-group">
+                                <div class="field-label-row">
+                                    <label class="field-label" for="quality">
+                                        品質
+                                    </label>
+                                    <output id="quality-value" for="quality">
+                                        85
+                                    </output>
+                                </div>
+                                <input
+                                    id="quality"
+                                    class="range"
+                                    type="range"
+                                    min="1"
+                                    max="100"
+                                    value="85"
+                                    aria-describedby="quality-note"
+                                />
+                                <div class="range-labels" aria-hidden="true">
+                                    <span>小さい</span>
+                                    <span>高品質</span>
+                                </div>
+                                <small
+                                    id="quality-note"
+                                    class="field-note"
+                                    hidden
+                                ></small>
+                            </div>
+                        </div>
+                        <div class="settings-footer">
+                            <dl class="summary">
+                                <dt>対象</dt>
+                                <dd id="summary-count">—</dd>
+                                <dt>出力</dt>
+                                <dd id="summary-output">—</dd>
+                            </dl>
+                            <p id="selection-note" class="selection-note">
+                                ファイルを追加すると、選択範囲をここで確認できます。
+                            </p>
+                            <div
+                                id="progress-wrap"
+                                class="progress-wrap"
+                                hidden
+                            >
+                                <div class="progress-meta">
+                                    <span id="progress-label">準備中…</span>
+                                    <span id="progress-percent">0%</span>
+                                </div>
+                                <div
+                                    class="progress-track"
+                                    role="progressbar"
+                                    aria-labelledby="progress-label"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100"
+                                    aria-valuenow="0"
+                                >
+                                    <span id="progress-bar"></span>
+                                </div>
+                            </div>
+                            <div class="run-actions">
+                                <button
+                                    id="cancel-convert"
+                                    class="button tinted danger"
+                                    type="button"
+                                    hidden
+                                >
+                                    <Fragment set:html={icon("stop", 14)} />
+                                    キャンセル
+                                    <span class="shortcut">
+                                        <kbd>Esc</kbd>
+                                    </span>
+                                </button>
+                                <button
+                                    id="convert"
+                                    class="button primary"
+                                    type="button"
+                                    disabled
+                                >
+                                    <Fragment set:html={icon("convert", 16)} />
+                                    <span class="label">変換する</span>
+                                    <span class="shortcut">
+                                        <kbd data-mod>Ctrl</kbd>
+                                        <kbd>↵</kbd>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </aside>
+            </main>
+
+            <footer class="app-footer">
+                <span>
+                    <Fragment set:html={icon("lock", 12)} />
+                    画像変換はローカルの WebAssembly エンジンで実行されます。
+                </span>
+                <ul class="shortcut-list" aria-label="キーボードショートカット">
+                    <li>
+                        <span class="shortcut">
+                            <kbd data-mod>Ctrl</kbd>
+                            <kbd>O</kbd>
+                        </span>
+                        ファイル追加
+                    </li>
+                    <li>
+                        <span class="shortcut">
+                            <kbd data-mod>Ctrl</kbd>
+                            <kbd>↵</kbd>
+                        </span>
+                        変換
+                    </li>
+                    <li>
+                        <span class="shortcut">
+                            <kbd data-mod>Ctrl</kbd>
+                            <kbd>S</kbd>
+                        </span>
+                        ZIP 保存
+                    </li>
+                    <li>
+                        <span class="shortcut">
+                            <kbd>Esc</kbd>
+                        </span>
+                        キャンセル
+                    </li>
+                </ul>
+                <nav class="legal-links" aria-label="ソースコードとライセンス">
+                    <a href="https://github.com/tytoman/image-converter">
+                        ソースコード
+                    </a>
+                    <a href="/licenses/">ライセンス・謝辞</a>
+                </nav>
+            </footer>
         </div>
 
-        <aside class="inspector">
-          <section class="panel settings-panel" aria-labelledby="settings-title">
-            <div class="panel-header">
-              <div class="panel-title"><h2 id="settings-title">変換設定</h2></div>
+        <div class="drop-overlay" aria-hidden="true">
+            <div class="drop-overlay-frame">
+                <Fragment set:html={icon("plus", 16)} />
+                <strong>ドロップしてファイルを追加</strong>
+                <span>端末内で処理され、送信されません</span>
             </div>
-            <div class="settings-body">
-              <div class="field format-group">
-                <div id="output-format-label" class="field-label">出力形式</div>
-                <div id="output-format" class="format-grid" role="radiogroup" aria-labelledby="output-format-label"></div>
-                <small id="format-note" class="field-note">利用可能な形式を確認しています。</small>
-              </div>
-              <div id="compression-group" class="field compression-group">
-                <div id="compression-label" class="field-label">圧縮レベル</div>
-                <div id="compression" class="segmented" role="radiogroup" aria-labelledby="compression-label">
-                  <label><input type="radio" name="compression" value="1" /><span>速い</span></label>
-                  <label><input type="radio" name="compression" value="6" checked /><span>標準</span></label>
-                  <label><input type="radio" name="compression" value="9" /><span>高圧縮</span></label>
-                </div>
-              </div>
-              <div id="quality-group" class="field quality-group">
-                <div class="field-label-row"><label class="field-label" for="quality">品質</label><output id="quality-value" for="quality">85</output></div>
-                <input id="quality" class="range" type="range" min="1" max="100" value="85" aria-describedby="quality-note" />
-                <div class="range-labels" aria-hidden="true"><span>小さい</span><span>高品質</span></div>
-                <small id="quality-note" class="field-note" hidden></small>
-              </div>
-            </div>
-            <div class="settings-footer">
-              <dl class="summary">
-                <dt>対象</dt><dd id="summary-count">—</dd>
-                <dt>出力</dt><dd id="summary-output">—</dd>
-              </dl>
-              <p id="selection-note" class="selection-note">ファイルを追加すると、選択範囲をここで確認できます。</p>
-              <div id="progress-wrap" class="progress-wrap" hidden>
-                <div class="progress-meta"><span id="progress-label">準備中…</span><span id="progress-percent">0%</span></div>
-                <div class="progress-track" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-bar"></span></div>
-              </div>
-              <div class="run-actions">
-                <button id="cancel-convert" class="button tinted danger" type="button" hidden><Fragment set:html={icon('stop', 14)} />キャンセル<span class="shortcut"><kbd>Esc</kbd></span></button>
-                <button id="convert" class="button primary" type="button" disabled><Fragment set:html={icon('convert', 16)} /><span class="label">変換する</span><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>↵</kbd></span></button>
-              </div>
-            </div>
-          </section>
-        </aside>
-      </main>
-
-      <footer class="app-footer">
-        <span><Fragment set:html={icon('lock', 12)} />画像変換はローカルの WebAssembly エンジンで実行されます。</span>
-        <ul class="shortcut-list" aria-label="キーボードショートカット">
-          <li><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>O</kbd></span>ファイル追加</li>
-          <li><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>↵</kbd></span>変換</li>
-          <li><span class="shortcut"><kbd data-mod>Ctrl</kbd><kbd>S</kbd></span>ZIP 保存</li>
-          <li><span class="shortcut"><kbd>Esc</kbd></span>キャンセル</li>
-        </ul>
-        <nav class="legal-links" aria-label="ソースコードとライセンス">
-          <a href="https://github.com/tytoman/image-converter">ソースコード</a>
-          <a href="/licenses/">ライセンス・謝辞</a>
-        </nav>
-      </footer>
-    </div>
-
-    <div class="drop-overlay" aria-hidden="true">
-      <div class="drop-overlay-frame"><Fragment set:html={icon('plus', 16)} /><strong>ドロップしてファイルを追加</strong><span>端末内で処理され、送信されません</span></div>
-    </div>
-    <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
-    <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
-    <script>import '../styles.css'; import '../client.ts';</script>
-  </body>
+        </div>
+        <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+        <div
+            id="announcer"
+            class="sr-only"
+            role="status"
+            aria-live="polite"
+        ></div>
+        <script>
+            import "../styles.css";
+            import "../client.ts";
+        </script>
+    </body>
 </html>
