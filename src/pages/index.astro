@@ -93,13 +93,13 @@ const inputFormats = ['PNG', 'JPEG/JPG', 'WebP', 'GIF', 'AVIF/AVIFS', 'HEIF/HEIC
                 <small id="quality-note" class="field-note" hidden></small>
               </div>
               <div class="field resolution-group">
-                <div class="field-label scale-heading" data-tooltip="倍率（全画像）"><Fragment set:html={icon('scale', 14)} /><span>全画像</span><span class="sr-only">の倍率</span></div>
+                <div id="scale-heading" class="field-label scale-heading" data-tooltip="倍率（全画像）"><Fragment set:html={icon('scale', 14)} /><span>全画像</span><span class="sr-only">の倍率</span></div>
                 <div class="resolution-row">
-                  <label class="dimension" data-tooltip="横倍率"><span>横</span><input id="scale-x" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の横倍率" aria-describedby="resolution-preview" /><small>%</small></label>
+                  <div class="dimension" data-tooltip="横の出力寸法"><span>横</span><input id="scale-x" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の横の倍率" aria-describedby="resolution-preview" /><select id="scale-unit" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
                   <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input id="scale-lock" type="checkbox" checked aria-label="全画像のアスペクト比を維持" /><Fragment set:html={icon('link', 14, 'icon-link')} /><Fragment set:html={icon('unlink', 14, 'icon-unlink')} /></label>
-                  <label class="dimension" data-tooltip="縦倍率"><span>縦</span><input id="scale-y" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の縦倍率" aria-describedby="resolution-preview" /><small>%</small></label>
+                  <div class="dimension" data-tooltip="縦の出力寸法"><span>縦</span><input id="scale-y" type="number" min="1" max="500" step="any" value="100" aria-label="全画像の縦の倍率" aria-describedby="resolution-preview" /><select class="scale-unit-peer" aria-label="全画像の寸法単位"><option value="%">%</option><option value="px">px</option></select></div>
                 </div>
-                <small class="field-note">1〜500% · ロック中は元の縦横比を維持</small>
+                <small id="scale-unit-note" class="field-note">1〜500% · ロック中は元の縦横比を維持</small>
                 <small id="resolution-preview" class="field-note">100% &#12399;&#20803;&#12398;&#12469;&#12452;&#12474;&#12391;&#12377;&#12290;</small>
               </div>
             </div>

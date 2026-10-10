@@ -9,6 +9,9 @@ type Item = {
   scaleX: number;
   scaleY: number;
   scaleLocked: boolean;
+  scaleUnit: '%' | 'px';
+  scaleAnchor: 'x' | 'y';
+  pendingScale?: { x: number; y: number; unit: '%' | 'px' };
   file: File;
   meta?: Metadata;
   error?: string;
@@ -47,6 +50,7 @@ const formatGrid = $('output-format');
 const scaleXInput = $('scale-x') as HTMLInputElement;
 const scaleYInput = $('scale-y') as HTMLInputElement;
 const scaleLock = $('scale-lock') as HTMLInputElement;
+const scaleUnit = $('scale-unit') as HTMLSelectElement;
 const quality = $('quality') as HTMLInputElement;
 const qualityGroup = $('quality-group');
 const qualityValue = $('quality-value');
@@ -69,6 +73,7 @@ const maxDimension = 16_384;
 const maxFramesPerFile = 100_000;
 const maxStoredOutputBytes = 256 * 1024 * 1024;
 let storedOutputBytes = 0;
+let globalScaleAnchor: 'x' | 'y' = 'x';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
@@ -159,8 +164,17 @@ function imageMetadata(format: string, width: number | undefined, height: number
   return `<dl class="image-metadata"><dt>形式</dt><dd><span class="fmt">${escapeHtml(format)}</span></dd><dt>寸法</dt><dd>${dimensions}</dd><dt>容量</dt><dd class="metadata-size"><span>${fileSize(size)}</span>${delta}</dd></dl>`;
 }
 
-function validScale(value: number) {
-  return Number.isFinite(value) && value >= 1 && value <= 500;
+function validScale(value: number, unit: '%' | 'px' = '%') {
+  return Number.isFinite(value) && value >= 1 && value <= (unit === 'px' ? maxDimension : 500) && (unit !== 'px' || Number.isInteger(value));
+}
+function scaleToPixels(meta: Metadata, x: number, y: number, unit: '%' | 'px') {
+  if (!validScale(x, unit) || !validScale(y, unit) || !meta.width || !meta.height) return { width: undefined, height: undefined };
+  return unit === 'px' ? { width: x, height: y } : { width: Math.max(1, Math.round(meta.width * x / 100)), height: Math.max(1, Math.round(meta.height * y / 100)) };
+}
+function convertScaleUnit(meta: Metadata, x: number, y: number, from: '%' | 'px', to: '%' | 'px') {
+  if (from === to || !meta.width || !meta.height) return { x, y };
+  const dims = scaleToPixels(meta, x, y, from);
+  return to === 'px' ? { x: dims.width ?? x, y: dims.height ?? y } : { x: dims.width ? dims.width / meta.width * 100 : x, y: dims.height ? dims.height / meta.height * 100 : y };
 }
 
 function frameTotal(meta?: Metadata) {
@@ -294,6 +308,8 @@ async function addFiles(files: FileList | File[]) {
       scaleX: scaleXInput.valueAsNumber,
       scaleY: scaleYInput.valueAsNumber,
       scaleLocked: scaleLock.checked,
+      scaleUnit: scaleUnit.value as Item['scaleUnit'],
+      scaleAnchor: globalScaleAnchor,
       range: 'all',
       frames: '',
       status: '解析待ち',
@@ -333,6 +349,15 @@ async function addFiles(files: FileList | File[]) {
         frames: frameCountValid ? count : 1,
         animated: Boolean(info.animated),
       };
+      const pendingUnit = item.pendingScale?.unit;
+      if (item.pendingScale) {
+        const converted = convertScaleUnit(item.meta, item.pendingScale.x, item.pendingScale.y, item.pendingScale.unit, item.scaleUnit);
+        item.scaleX = converted.x; item.scaleY = converted.y; item.pendingScale = undefined;
+      }
+      if (item.scaleLocked && item.scaleUnit === 'px' && (!pendingUnit || pendingUnit === 'px')) {
+        if (item.scaleAnchor === 'x') item.scaleY = Math.max(1, Math.round(item.scaleX * item.meta.height / item.meta.width));
+        else item.scaleX = Math.max(1, Math.round(item.scaleY * item.meta.width / item.meta.height));
+      }
       if (!frameCountValid) {
         item.error = `ページ / フレーム数は 1–${maxFramesPerFile.toLocaleString()} の範囲で指定してください`;
         item.status = '上限超過';
@@ -427,6 +452,7 @@ function renderItems() {
       const thumbHtml = item.thumbUrl
         ? `<div class="thumb"><img src="${item.thumbUrl}" alt="" loading="lazy" /></div>`
         : `<div class="thumb empty">${icon('image', 14)}</div>`;
+      const awaitingScaleConversion = Boolean(item.pendingScale && item.pendingScale.unit !== item.scaleUnit && !item.meta);
 
       row.innerHTML = `
         <div class="input-image">
@@ -440,9 +466,9 @@ function renderItems() {
         </div>
         <div class="item-settings">
           <div class="resolution-row">
-            <label class="dimension" data-tooltip="横倍率"><span>横</span><input class="item-scale-x" type="number" min="1" max="500" step="any" value="${Number.isFinite(item.scaleX) ? item.scaleX : ''}" aria-label="${escapeHtml(item.file.name)} の横倍率" ${running ? 'disabled' : ''} /><small>%</small></label>
+            <div class="dimension"><span>横</span><input class="item-scale-x" aria-label="${escapeHtml(item.file.name)} の横${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 500}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleX}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit" aria-label="${escapeHtml(item.file.name)} の横単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
             <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input class="item-scale-lock" type="checkbox" ${item.scaleLocked ? 'checked' : ''} ${running ? 'disabled' : ''} aria-label="${escapeHtml(item.file.name)} のアスペクト比を維持" />${icon('link', 14, 'icon-link')}${icon('unlink', 14, 'icon-unlink')}</label>
-            <label class="dimension" data-tooltip="縦倍率"><span>縦</span><input class="item-scale-y" type="number" min="1" max="500" step="any" value="${Number.isFinite(item.scaleY) ? item.scaleY : ''}" aria-label="${escapeHtml(item.file.name)} の縦倍率" ${running ? 'disabled' : ''} /><small>%</small></label>
+            <div class="dimension"><span>縦</span><input class="item-scale-y" aria-label="${escapeHtml(item.file.name)} の縦${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 500}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleY}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit-peer" aria-label="${escapeHtml(item.file.name)} の縦単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
           </div>
           <span class="item-dimensions result-meta"></span>
           <span class="status ${statusClass}" title="${escapeHtml(item.error || '')}">${statusIcon}<span>${escapeHtml(displayedStatus)}</span></span>
@@ -457,28 +483,47 @@ function renderItems() {
       const itemScaleY = row.querySelector<HTMLInputElement>('.item-scale-y')!;
       const itemScaleLock = row.querySelector<HTMLInputElement>('.item-scale-lock')!;
       const updateItemScale = () => {
-        const dims = item.meta ? outputDimensions(item.meta, item.scaleX, item.scaleY) : undefined;
-        row.querySelector('.item-dimensions')!.textContent = dims?.width && dims.height ? `${dims.width} × ${dims.height} px` : '—';
-        itemScaleX.setAttribute('aria-invalid', String(!validScale(item.scaleX)));
-        itemScaleY.setAttribute('aria-invalid', String(!validScale(item.scaleY)));
+        const dims = item.meta ? scaleToPixels(item.meta, item.scaleX, item.scaleY, item.scaleUnit) : undefined;
+        row.querySelector('.item-dimensions')!.textContent = awaitingScaleConversion ? '解析後に寸法を換算します' : dims?.width && dims.height ? `${dims.width} × ${dims.height} px` : '—';
+        itemScaleX.setAttribute('aria-invalid', String(!validScale(item.scaleX, item.scaleUnit)));
+        itemScaleY.setAttribute('aria-invalid', String(!validScale(item.scaleY, item.scaleUnit)));
       };
       updateItemScale();
       const changeItemScale = (axis: 'x' | 'y') => {
         if (axis === 'x') item.scaleX = itemScaleX.valueAsNumber;
         else item.scaleY = itemScaleY.valueAsNumber;
-        if (item.scaleLocked) {
+        item.scaleAnchor = axis;
+        if (item.scaleLocked && item.scaleUnit === '%') {
           if (axis === 'x') { item.scaleY = item.scaleX; itemScaleY.value = itemScaleX.value; }
           else { item.scaleX = item.scaleY; itemScaleX.value = itemScaleY.value; }
+        } else if (item.scaleLocked && item.meta && item.scaleUnit === 'px') {
+          if (axis === 'x') { item.scaleY = Math.max(1, Math.round(item.scaleX * item.meta.height / item.meta.width)); itemScaleY.value = String(item.scaleY); }
+          else { item.scaleX = Math.max(1, Math.round(item.scaleY * item.meta.width / item.meta.height)); itemScaleX.value = String(item.scaleX); }
         }
+        if (!item.meta) item.pendingScale = { x: item.scaleX, y: item.scaleY, unit: item.scaleUnit };
         ($('preset') as HTMLSelectElement).value = 'custom';
         updateItemScale();
         updateControls();
       };
       itemScaleX.addEventListener('input', () => changeItemScale('x'));
       itemScaleY.addEventListener('input', () => changeItemScale('y'));
+      const itemUnitX = row.querySelector<HTMLSelectElement>('.item-scale-unit')!;
+      const itemUnitY = row.querySelector<HTMLSelectElement>('.item-scale-unit-peer')!;
+      const switchItemUnit = () => {
+        const next = itemUnitX.value as Item['scaleUnit'];
+        if (item.meta) {
+          const v = convertScaleUnit(item.meta, item.scaleX, item.scaleY, item.scaleUnit, next);
+          item.scaleX = v.x; item.scaleY = v.y;
+        } else item.pendingScale ??= { x: item.scaleX, y: item.scaleY, unit: item.scaleUnit };
+        item.scaleUnit = next;
+        ($('preset') as HTMLSelectElement).value = 'custom';
+        renderItems(); updateControls();
+      };
+      itemUnitX.addEventListener('change', switchItemUnit);
+      itemUnitY.addEventListener('change', () => { itemUnitX.value = itemUnitY.value; switchItemUnit(); });
       itemScaleLock.addEventListener('change', () => {
         item.scaleLocked = itemScaleLock.checked;
-        changeItemScale('x');
+        changeItemScale(item.scaleAnchor);
       });
       renderItemOutput(row, item);
 
@@ -590,24 +635,33 @@ function selectedCount() {
   return items.reduce((count, item) => count + getFrameIndexes(item).length, 0);
 }
 
-function outputDimensions(meta: Metadata, percentX: number, percentY: number) {
-  if (!validScale(percentX) || !validScale(percentY) || !meta.width || !meta.height) return { width: undefined, height: undefined };
-  return { width: Math.max(1, Math.round(meta.width * percentX / 100)), height: Math.max(1, Math.round(meta.height * percentY / 100)) };
-}
-
 function updateResolutionUI() {
   const preview = $('resolution-preview');
-  scaleXInput.setAttribute('aria-invalid', String(!validScale(scaleXInput.valueAsNumber)));
-  scaleYInput.setAttribute('aria-invalid', String(!validScale(scaleYInput.valueAsNumber)));
-  if (!validScale(scaleXInput.valueAsNumber) || !validScale(scaleYInput.valueAsNumber)) {
-    preview.textContent = '\u500d\u7387\u306f 1% \u304b\u3089 500% \u306e\u7bc4\u56f2\u3067\u6307\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044\u3002'; return;
+  const unit = scaleUnit.value as Item['scaleUnit'];
+  $('scale-heading').setAttribute('data-tooltip', unit === 'px' ? '寸法（全画像）' : '倍率（全画像）');
+  scaleXInput.max = scaleYInput.max = String(unit === 'px' ? maxDimension : 500);
+  scaleXInput.step = scaleYInput.step = unit === 'px' ? '1' : 'any';
+  const peer = document.querySelector<HTMLSelectElement>('.scale-unit-peer'); if (peer) peer.value = unit;
+  $('scale-unit-note').textContent = !items.length && unit === 'px'
+    ? '画像追加前は横・縦1024 pxから設定できます。'
+    : unit === 'px' ? `1〜${maxDimension.toLocaleString()} px · ロック中は元の縦横比を維持` : '1〜500% · ロック中は元の縦横比を維持';
+  scaleXInput.setAttribute('aria-label', `全画像の横の${unit === 'px' ? '寸法' : '倍率'}`);
+  scaleYInput.setAttribute('aria-label', `全画像の縦の${unit === 'px' ? '寸法' : '倍率'}`);
+  scaleXInput.setAttribute('aria-invalid', String(!validScale(scaleXInput.valueAsNumber, unit)));
+  scaleYInput.setAttribute('aria-invalid', String(!validScale(scaleYInput.valueAsNumber, unit)));
+  if (!validScale(scaleXInput.valueAsNumber, unit) || !validScale(scaleYInput.valueAsNumber, unit)) {
+    preview.textContent = unit === 'px' ? `寸法は1〜${maxDimension.toLocaleString()} pxの整数で指定してください。` : '倍率は1〜500%で指定してください。'; return;
   }
   const referenceItem = items.find((item) => item.meta && !item.error);
   const reference = referenceItem?.meta;
   if (!reference) { preview.textContent = '\u753b\u50cf\u3092\u8ffd\u52a0\u3059\u308b\u3068\u51fa\u529b\u5bf8\u6cd5\u3092\u8868\u793a\u3057\u307e\u3059\u3002'; return; }
-  const dims = outputDimensions(reference, referenceItem!.scaleX, referenceItem!.scaleY);
-  if (!validScale(referenceItem!.scaleX) || !validScale(referenceItem!.scaleY)) {
-    preview.textContent = '横・縦の倍率はそれぞれ 1〜500% で指定してください。';
+  if (referenceItem!.scaleUnit === unit) {
+    scaleXInput.value = String(referenceItem!.scaleX);
+    scaleYInput.value = String(referenceItem!.scaleY);
+  }
+  const dims = scaleToPixels(reference, referenceItem!.scaleX, referenceItem!.scaleY, referenceItem!.scaleUnit);
+  if (!validScale(referenceItem!.scaleX, referenceItem!.scaleUnit) || !validScale(referenceItem!.scaleY, referenceItem!.scaleUnit)) {
+    preview.textContent = referenceItem!.scaleUnit === 'px' ? '横・縦の寸法を確認してください。' : '横・縦の倍率はそれぞれ 1〜500% で指定してください。';
     return;
   }
   preview.textContent = dims.width && dims.height && dims.width <= maxDimension && dims.height <= maxDimension && dims.width * dims.height <= maxPixels
@@ -715,7 +769,7 @@ function renderItemOutput(row: HTMLElement, item: Item) {
       detail.innerHTML = imageMetadata(result.format, result.width, result.height, result.blob.size, delta);
       const save = document.createElement('a');
       save.className = 'button subtle download';
-      save.href = result.url;
+      save.href = result.url || '';
       save.download = result.name;
       save.dataset.tooltip = '個別保存';
       save.setAttribute('aria-label', `${result.name} を保存`);
@@ -769,7 +823,7 @@ function resetResults() {
 }
 
 function readOptions(frame: number, item: Item) {
-  const { width: outWidth, height: outHeight } = outputDimensions(item.meta!, item.scaleX, item.scaleY);
+  const { width: outWidth, height: outHeight } = scaleToPixels(item.meta!, item.scaleX, item.scaleY, item.scaleUnit);
   return {
     format: currentFormat(),
     frame,
@@ -784,11 +838,12 @@ function validateSettings(): string | undefined {
   if (items.some((item) => item.meta && !item.error && invalidFrameSelection(item))) {
     return 'ページ番号は 1 始まりで指定してください（例: 1,3-5）。';
   }
-  if (!validScale(scaleXInput.valueAsNumber) || !validScale(scaleYInput.valueAsNumber)) return '横・縦の倍率はそれぞれ 1〜500% で指定してください。';
+  const unit = scaleUnit.value as Item['scaleUnit'];
+  if (!validScale(scaleXInput.valueAsNumber, unit) || !validScale(scaleYInput.valueAsNumber, unit)) return unit === 'px' ? '寸法は1〜16384 pxの整数で指定してください。' : '倍率は1〜500%で指定してください。';
   for (const item of items) {
     if (!item.meta || item.error) continue;
-    if (!validScale(item.scaleX) || !validScale(item.scaleY)) return `${item.file.name}: 横・縦の倍率はそれぞれ 1〜500% で指定してください。`;
-    const dims = outputDimensions(item.meta, item.scaleX, item.scaleY);
+    if (!validScale(item.scaleX, item.scaleUnit) || !validScale(item.scaleY, item.scaleUnit)) return `${item.file.name}: 出力寸法を確認してください。`;
+    const dims = scaleToPixels(item.meta, item.scaleX, item.scaleY, item.scaleUnit);
     if (dims.width && dims.height && (dims.width > maxDimension || dims.height > maxDimension)) return `出力寸法は最大 ${maxDimension.toLocaleString()} px です。`;
     if (dims.width && dims.height && dims.width * dims.height > maxPixels) return '出力サイズが 40 MP を超えています。';
   }
@@ -817,7 +872,8 @@ async function convertAll() {
   renderItems();
   updateControls();
 
-  for (const id of ['preset', 'scale-x', 'scale-y', 'scale-lock']) ($(id) as HTMLInputElement).disabled = true;
+  for (const id of ['preset', 'scale-x', 'scale-y', 'scale-lock', 'scale-unit']) ($(id) as HTMLInputElement).disabled = true;
+  document.querySelector<HTMLSelectElement>('.scale-unit-peer')!.disabled = true;
 
   const queue = items.filter(
     (item) => item.meta && !item.error && !invalidFrameSelection(item) && getFrameIndexes(item).length
@@ -908,7 +964,8 @@ async function convertAll() {
   running = false;
   cancelling = false;
 
-  for (const id of ['preset', 'scale-x', 'scale-y', 'scale-lock']) ($(id) as HTMLInputElement).disabled = false;
+  for (const id of ['preset', 'scale-x', 'scale-y', 'scale-lock', 'scale-unit']) ($(id) as HTMLInputElement).disabled = false;
+  document.querySelector<HTMLSelectElement>('.scale-unit-peer')!.disabled = false;
   $('cancel-convert').hidden = true;
   progressWrap.className = `progress-wrap ${wasCancelled ? '' : 'done'}`;
   $('progress-label').textContent = wasCancelled
@@ -986,6 +1043,7 @@ async function downloadZip() {
 
 function applyPreset(value: string) {
   if (value === 'custom') return;
+  scaleUnit.value = '%';
   if (value === 'web') {
     setFormat('WEBP');
     quality.value = '82';
@@ -1008,6 +1066,7 @@ function applyPreset(value: string) {
     item.scaleX = scaleXInput.valueAsNumber;
     item.scaleY = scaleYInput.valueAsNumber;
     item.scaleLocked = true;
+    item.scaleUnit = '%'; item.pendingScale = undefined; item.scaleAnchor = 'x';
   }
   renderItems();
   updateResolutionUI();
@@ -1177,14 +1236,29 @@ document.querySelectorAll<HTMLInputElement>('input[name="compression"]').forEach
 });
 
 function changeGlobalScale(axis: 'x' | 'y') {
-  if (scaleLock.checked) {
+  globalScaleAnchor = axis;
+  if (scaleLock.checked && scaleUnit.value === '%') {
     if (axis === 'x') scaleYInput.value = scaleXInput.value;
     else scaleXInput.value = scaleYInput.value;
   }
   for (const item of items) {
+    item.scaleLocked = scaleLock.checked;
     item.scaleX = scaleXInput.valueAsNumber;
     item.scaleY = scaleYInput.valueAsNumber;
-    item.scaleLocked = scaleLock.checked;
+    item.scaleUnit = scaleUnit.value as Item['scaleUnit']; item.scaleAnchor = axis;
+    if (item.scaleLocked && item.meta && item.scaleUnit === 'px') {
+      if (axis === 'x') item.scaleY = Math.max(1, Math.round(item.scaleX * item.meta.height / item.meta.width));
+      else item.scaleX = Math.max(1, Math.round(item.scaleY * item.meta.width / item.meta.height));
+    }
+    if (!item.meta) item.pendingScale = { x: item.scaleX, y: item.scaleY, unit: item.scaleUnit };
+  }
+  const referenceItem = items.find((item) => item.meta && !item.error);
+  if (scaleLock.checked && scaleUnit.value === 'px' && referenceItem?.meta) {
+    scaleXInput.value = String(referenceItem.scaleX); scaleYInput.value = String(referenceItem.scaleY);
+  }
+  if (scaleLock.checked && scaleUnit.value === 'px') {
+    if (axis === 'x' && referenceItem?.meta) scaleYInput.value = String(referenceItem.scaleY);
+    if (axis === 'y' && referenceItem?.meta) scaleXInput.value = String(referenceItem.scaleX);
   }
   renderItems();
   ($('preset') as HTMLSelectElement).value = 'custom';
@@ -1192,7 +1266,25 @@ function changeGlobalScale(axis: 'x' | 'y') {
 }
 scaleXInput.addEventListener('input', () => changeGlobalScale('x'));
 scaleYInput.addEventListener('input', () => changeGlobalScale('y'));
-scaleLock.addEventListener('change', () => changeGlobalScale('x'));
+scaleLock.addEventListener('change', () => changeGlobalScale(globalScaleAnchor));
+document.querySelector<HTMLSelectElement>('.scale-unit-peer')?.addEventListener('change', (event) => {
+  scaleUnit.value = (event.currentTarget as HTMLSelectElement).value;
+  scaleUnit.dispatchEvent(new Event('change'));
+});
+scaleUnit.addEventListener('change', () => {
+  ($('preset') as HTMLSelectElement).value = 'custom';
+  const next = scaleUnit.value as Item['scaleUnit'];
+  for (const item of items) {
+    if (item.meta) {
+      const v = convertScaleUnit(item.meta, item.scaleX, item.scaleY, item.scaleUnit, next); item.scaleX = v.x; item.scaleY = v.y;
+    } else item.pendingScale ??= { x: item.scaleX, y: item.scaleY, unit: item.scaleUnit };
+    item.scaleUnit = next;
+  }
+  const referenceItem = items.find((item) => item.meta && !item.error);
+  scaleXInput.value = String(referenceItem?.scaleX ?? (next === 'px' ? 1024 : 100)); scaleYInput.value = String(referenceItem?.scaleY ?? (next === 'px' ? 1024 : 100));
+  if (!items.length) { scaleXInput.value = scaleYInput.value = next === 'px' ? '1024' : '100'; }
+  renderItems(); updateControls();
+});
 
 $('theme-toggle').addEventListener('click', () => {
   const root = document.documentElement;
