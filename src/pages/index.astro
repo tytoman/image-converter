@@ -241,13 +241,16 @@ const inputFormats = [
                                             aria-label="全画像の横の倍率"
                                             aria-describedby="resolution-preview"
                                         />
-                                        <select
-                                            id="scale-unit"
-                                            aria-label="全画像の寸法単位"
-                                        >
-                                            <option value="%">%</option>
-                                            <option value="px">px</option>
-                                        </select>
+                                        <span class="unit-control">
+                                            <select
+                                                id="scale-unit"
+                                                aria-label="全画像の寸法単位"
+                                            >
+                                                <option value="%">%</option>
+                                                <option value="px">px</option>
+                                            </select>
+                                            <span class="unit-label" aria-hidden="true">%</span>
+                                        </span>
                                     </div>
                                     <label
                                         class="aspect-lock"
@@ -289,13 +292,16 @@ const inputFormats = [
                                             aria-label="全画像の縦の倍率"
                                             aria-describedby="resolution-preview"
                                         />
-                                        <select
-                                            class="scale-unit-peer"
-                                            aria-label="全画像の寸法単位"
-                                        >
-                                            <option value="%">%</option>
-                                            <option value="px">px</option>
-                                        </select>
+                                        <span class="unit-control">
+                                            <select
+                                                class="scale-unit-peer"
+                                                aria-label="全画像の寸法単位"
+                                            >
+                                                <option value="%">%</option>
+                                                <option value="px">px</option>
+                                            </select>
+                                            <span class="unit-label" aria-hidden="true">%</span>
+                                        </span>
                                     </div>
                                 </div>
                                 <small id="scale-unit-note" class="field-note">
@@ -592,5 +598,20 @@ const inputFormats = [
             import "../styles.css";
             import "../client.ts";
         </script>
+        <dialog id="image-preview" class="image-preview" aria-labelledby="image-preview-title">
+            <div class="image-preview-header">
+                <div class="image-preview-heading">
+                    <h2 id="image-preview-title">画像プレビュー</h2>
+                    <span id="image-preview-kind" class="image-preview-kind"></span>
+                </div>
+                <button id="image-preview-close" class="icon-button image-preview-close" type="button" aria-label="拡大プレビューを閉じる" autofocus>
+                    <Fragment set:html={icon("x", 16)} />
+                </button>
+            </div>
+            <div class="image-preview-content">
+                <img id="image-preview-image" alt="" hidden />
+                <p id="image-preview-status" class="image-preview-status" role="status"></p>
+            </div>
+        </dialog>
     </body>
 </html>

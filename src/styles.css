@@ -874,3 +874,31 @@
     .file-list-wrap { --file-input-min-width: 180px; --file-output-min-width: 140px; }
   }
 }
+
+@layer components {
+  .unit-control { position: relative; display: block; width: 22px; height: 22px; flex: none; }
+  .dimension .unit-control select { position: absolute; inset: 0; z-index: 1; width: 22px; height: 22px; padding: 0; -webkit-appearance: none; appearance: none; color: transparent; -webkit-text-fill-color: transparent; }
+  .dimension .unit-control select option { color: var(--text-default); -webkit-text-fill-color: var(--text-default); background: var(--element-background); }
+  .dimension .unit-control select:disabled { color: transparent; -webkit-text-fill-color: transparent; }
+  .dimension .unit-control .unit-label { position: absolute; inset: 0; z-index: 2; display: grid; width: 22px; height: 22px; flex: none; place-items: center; margin: 0; color: var(--text-default); font: var(--font-medium) var(--text-xs) var(--font-mono); line-height: 1; text-align: center; pointer-events: none; }
+  .dimension .unit-control:has(select:disabled) .unit-label { color: var(--text-disabled); }
+  .dimension .unit-control:hover select:not(:disabled) { background: var(--element-active); }
+  .dimension .unit-control:has(select:focus-visible) select { outline: 2px solid var(--border-focused); outline-offset: 1px; }
+  .dimension .unit-control select:disabled { background: var(--element-disabled); cursor: default; }
+  .thumb.preview-trigger { padding: 0; -webkit-appearance: none; appearance: none; cursor: zoom-in; }
+  .thumb.preview-trigger:hover { border-color: var(--border-hover); }
+  .thumb.preview-trigger:focus-visible { outline: 2px solid var(--border-focused); outline-offset: 2px; }
+  .image-preview { width: min(96vw, 1200px); max-width: none; max-height: 94dvh; padding: 0; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-md); color: var(--text-default); background: var(--surface-modal); box-shadow: var(--shadow-modal); }
+  .image-preview::backdrop { background: rgb(0 0 0 / 72%); }
+  .image-preview[open] { display: flex; flex-direction: column; }
+  .image-preview-header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: var(--space-12); min-height: 48px; padding: var(--space-8) var(--space-12); border-bottom: 1px solid var(--border-muted); }
+  .image-preview-heading { display: flex; flex-direction: column; min-width: 0; gap: var(--space-2); }
+  .image-preview-heading h2 { max-width: 100%; overflow-wrap: anywhere; margin: 0; font-size: var(--text-sm); font-weight: var(--font-medium); }
+  .image-preview-kind { overflow-wrap: anywhere; color: var(--text-muted); font-size: var(--text-xs); }
+  .image-preview-close { width: 40px; height: 40px; flex: none; }
+  .image-preview-content { display: grid; min-height: 120px; max-height: calc(94dvh - 50px); place-items: center; padding: var(--space-12); overflow: auto; }
+  .image-preview-content img { display: block; width: auto; height: auto; max-width: 100%; max-height: calc(94dvh - 86px); object-fit: contain; background-color: var(--surface-editor); background-image: conic-gradient(var(--border-muted) 25%, transparent 0 50%, var(--border-muted) 0 75%, transparent 0); background-size: 12px 12px; }
+  .image-preview-content img[hidden] { display: none; }
+  .image-preview-status { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+  body.image-preview-open { overflow: hidden; }
+}

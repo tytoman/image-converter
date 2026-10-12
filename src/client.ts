@@ -74,6 +74,12 @@ const maxDimension = 16_384;
 const maxFramesPerFile = 100_000;
 const maxStoredOutputBytes = 256 * 1024 * 1024;
 let storedOutputBytes = 0;
+type PreviewTarget = { kind: 'input'; itemId: string } | { kind: 'output'; resultName: string };
+let previewTarget: PreviewTarget | undefined;
+let previewToken = 0;
+let previewOwnedUrl: string | undefined;
+let previewOpener: HTMLElement | undefined;
+let previewScrollY = 0;
 let globalScaleAnchor: 'x' | 'y' = 'x';
 const appliedGlobalScale: GlobalScale = { x: 100, y: 100, unit: '%', locked: true, anchor: 'x' };
 const draftGlobalScale: GlobalScale = { ...appliedGlobalScale };
@@ -288,6 +294,107 @@ function canThumbnail(file: File) {
   return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'].includes(ext);
 }
 
+function closePreview(restoreFocus = true) {
+  const dialog = $('image-preview') as HTMLDialogElement;
+  if (!dialog.open) return;
+  ++previewToken;
+  if (previewOwnedUrl) URL.revokeObjectURL(previewOwnedUrl);
+  previewOwnedUrl = undefined;
+  ($('image-preview-image') as HTMLImageElement).removeAttribute('src');
+  $('image-preview-status').textContent = '';
+  dialog.close();
+  document.body.classList.remove('image-preview-open');
+  window.scrollTo(0, previewScrollY);
+  const opener = previewOpener;
+  previewOpener = undefined;
+  previewTarget = undefined;
+  if (restoreFocus) {
+    const fallback = opener?.isConnected ? opener : opener?.dataset.itemId
+      ? document.querySelector<HTMLElement>(`.preview-trigger[data-item-id="${CSS.escape(opener.dataset.itemId)}"]`)
+      : $('add-files');
+    fallback?.focus();
+  }
+}
+
+function removePreviewObjectUrl() {
+  if (!previewOwnedUrl) return;
+  URL.revokeObjectURL(previewOwnedUrl);
+  previewOwnedUrl = undefined;
+}
+
+async function openPreview(target: PreviewTarget, opener: HTMLElement) {
+  const dialog = $('image-preview') as HTMLDialogElement;
+  closePreview(false);
+  const token = ++previewToken;
+  previewTarget = target;
+  previewOpener = opener;
+  previewScrollY = window.scrollY;
+  document.body.classList.add('image-preview-open');
+  dialog.showModal();
+  const image = $('image-preview-image') as HTMLImageElement;
+  const status = $('image-preview-status');
+  const isInput = target.kind === 'input';
+  const item = isInput ? items.find((entry) => entry.id === target.itemId) : undefined;
+  const result = target.kind === 'output' ? results.find((entry) => entry.name === target.resultName) : undefined;
+  const sourceItem = !isInput && result ? items.find((entry) => entry.id === result.sourceId) : undefined;
+  if ((isInput && !item) || (target.kind === 'output' && (!result || result.error))) { closePreview(); return; }
+  $('image-preview-title').textContent = isInput ? item!.file.name : result!.name;
+  image.alt = isInput ? item!.file.name : result!.name;
+  image.hidden = true;
+  status.textContent = '\u30d7\u30ec\u30d3\u30e5\u30fc\u3092\u8aad\u307f\u8fbc\u3093\u3067\u3044\u307e\u3059\u2026';
+  $('image-preview-kind').textContent = isInput ? '入力画像' : '出力画像';
+
+  const source = isInput ? item!.file : result!.blob;
+  const directUrl = isInput ? item!.thumbUrl : result!.thumbUrl || result!.url;
+  const loadUrl = (url: string) => new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const loader = new Image();
+    loader.onload = () => resolve({ width: loader.naturalWidth, height: loader.naturalHeight });
+    loader.onerror = () => reject(new Error('画像を表示できませんでした'));
+    loader.src = url;
+  });
+  try {
+    image.removeAttribute('src');
+    let loaded: { width: number; height: number } | undefined;
+    if (directUrl) {
+      try {
+        loaded = await loadUrl(directUrl);
+        if (token !== previewToken || !dialog.open) return;
+        image.src = directUrl;
+      } catch { if (token !== previewToken || !dialog.open) return; }
+    }
+    if (!loaded) {
+      if (isInput ? !item!.meta : !result || result.error) {
+        status.textContent = 'この画像はプレビューできません。';
+        return;
+      }
+      const width = isInput ? item!.meta!.width : result!.width || sourceItem?.meta?.width || 0;
+      const height = isInput ? item!.meta!.height : result!.height || sourceItem?.meta?.height || 0;
+      if (!width || !height) throw new Error('画像サイズを取得できませんでした');
+      const ratio = Math.min(1, 2048 / Math.max(width, height));
+      const bytes = await source.arrayBuffer();
+      if (token !== previewToken || !dialog.open) return;
+      const png = await request<ArrayBuffer>({
+        type: 'convert', bytes, filename: isInput ? item!.file.name : result!.name,
+        options: { format: 'PNG', frame: 0, width: Math.max(1, Math.round(width * ratio)), height: Math.max(1, Math.round(height * ratio)), compression: 1, quality: 100 },
+      }, [bytes]);
+      if (token !== previewToken || !dialog.open) { return; }
+      const fallbackUrl = URL.createObjectURL(new Blob([png], { type: 'image/png' }));
+      previewOwnedUrl = fallbackUrl;
+      loaded = await loadUrl(fallbackUrl);
+      if (token !== previewToken || !dialog.open) return;
+      image.src = fallbackUrl;
+    }
+    if (token !== previewToken || !dialog.open) return;
+    image.hidden = false;
+    status.textContent = '';
+  } catch (error) {
+    if (token !== previewToken || !dialog.open) return;
+    removePreviewObjectUrl();
+    image.removeAttribute('src');
+    status.textContent = error instanceof Error ? error.message : 'プレビューを表示できませんでした。';
+  }
+}
+
 async function addFiles(files: FileList | File[]) {
   const added: Item[] = [];
   for (const file of Array.from(files)) {
@@ -442,9 +549,8 @@ function renderItems() {
               ? 'ready'
               : 'muted';
 
-      const thumbHtml = item.thumbUrl
-        ? `<div class="thumb"><img src="${item.thumbUrl}" alt="" loading="lazy" /></div>`
-        : `<div class="thumb empty">${icon('image', 14)}</div>`;
+      const previewLabel = `${item.file.name} の入力画像を拡大表示`;
+      const thumbHtml = `<button type="button" class="thumb preview-trigger${item.thumbUrl ? '' : ' empty'}" aria-label="${escapeHtml(previewLabel)}" data-preview-kind="input" data-item-id="${escapeHtml(item.id)}" ${!item.thumbUrl && (!item.meta || item.error) ? 'disabled' : ''}>${item.thumbUrl ? `<img src="${item.thumbUrl}" alt="" loading="lazy" />` : icon('image', 14)}</button>`;
       const awaitingScaleConversion = Boolean(item.pendingScale && item.pendingScale.unit !== item.scaleUnit && !item.meta);
 
       row.innerHTML = `
@@ -462,9 +568,9 @@ function renderItems() {
         </div>
         <div class="item-settings">
           <div class="resolution-row">
-            <div class="dimension"><span>横</span><input class="item-scale-x" aria-label="${escapeHtml(item.file.name)} の横${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 1000}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleX}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit" aria-label="${escapeHtml(item.file.name)} の横単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
+            <div class="dimension"><span>横</span><input class="item-scale-x" aria-label="${escapeHtml(item.file.name)} の横${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 1000}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleX}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><span class="unit-control"><select class="item-scale-unit" aria-label="${escapeHtml(item.file.name)} の横単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select><span class="unit-label" aria-hidden="true">${item.scaleUnit}</span></span></div>
             <label class="aspect-lock" data-tooltip="アスペクト比を維持"><input class="item-scale-lock" type="checkbox" ${item.scaleLocked ? 'checked' : ''} ${running ? 'disabled' : ''} aria-label="${escapeHtml(item.file.name)} のアスペクト比を維持" />${icon('link', 14, 'icon-link')}${icon('unlink', 14, 'icon-unlink')}</label>
-            <div class="dimension"><span>縦</span><input class="item-scale-y" aria-label="${escapeHtml(item.file.name)} の縦${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 1000}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleY}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><select class="item-scale-unit-peer" aria-label="${escapeHtml(item.file.name)} の縦単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select></div>
+            <div class="dimension"><span>縦</span><input class="item-scale-y" aria-label="${escapeHtml(item.file.name)} の縦${item.scaleUnit === 'px' ? '寸法' : '倍率'}" type="number" min="1" max="${item.scaleUnit === 'px' ? maxDimension : 1000}" step="${item.scaleUnit === 'px' ? 1 : 'any'}" value="${awaitingScaleConversion ? '' : item.scaleY}" ${running || awaitingScaleConversion ? 'disabled' : ''} /><span class="unit-control"><select class="item-scale-unit-peer" aria-label="${escapeHtml(item.file.name)} の縦単位" ${running ? 'disabled' : ''}><option value="%" ${item.scaleUnit === '%' ? 'selected' : ''}>%</option><option value="px" ${item.scaleUnit === 'px' ? 'selected' : ''}>px</option></select><span class="unit-label" aria-hidden="true">${item.scaleUnit}</span></span></div>
           </div>
           <span class="item-dimensions result-meta"></span>
         </div>
@@ -473,6 +579,9 @@ function renderItems() {
           ${icon('x', 14)}
         </button>
       `;
+      row.querySelector<HTMLButtonElement>('.preview-trigger')?.addEventListener('click', (event) => {
+        void openPreview({ kind: 'input', itemId: item.id }, event.currentTarget as HTMLElement);
+      });
 
       const itemScaleX = row.querySelector<HTMLInputElement>('.item-scale-x')!;
       const itemScaleY = row.querySelector<HTMLInputElement>('.item-scale-y')!;
@@ -605,8 +714,10 @@ function getFrameIndexes(item: Item) {
 }
 
 function removeItem(item: Item) {
+  const target = previewTarget;
   const index = items.indexOf(item);
   if (index >= 0) {
+    if ((target?.kind === 'input' && target.itemId === item.id) || (target?.kind === 'output' && results.some((result) => result.sourceId === item.id && result.name === target.resultName))) closePreview(false);
     if (item.thumbUrl) URL.revokeObjectURL(item.thumbUrl);
     items.splice(index, 1);
     for (let i = results.length - 1; i >= 0; i--) {
@@ -641,6 +752,10 @@ function updateResolutionUI() {
   scaleXInput.max = scaleYInput.max = String(unit === 'px' ? maxDimension : 1000);
   scaleXInput.step = scaleYInput.step = unit === 'px' ? '1' : 'any';
   const peer = document.querySelector<HTMLSelectElement>('.scale-unit-peer'); if (peer) peer.value = unit;
+  document.querySelectorAll<HTMLElement>('#scale-unit, .scale-unit-peer').forEach((select) => {
+    const label = select.closest('.unit-control')?.querySelector<HTMLElement>('.unit-label');
+    if (label) label.textContent = unit;
+  });
   $('scale-unit-note').textContent = !items.length && unit === 'px' ? '\u753b\u50cf\u8ffd\u52a0\u524d\u306f\u6a2a\u30fb\u7e261024 px\u304b\u3089\u8a2d\u5b9a\u3067\u304d\u307e\u3059\u3002' : unit === 'px' ? '1\u301c' + maxDimension.toLocaleString() + ' px \u00b7 \u30ed\u30c3\u30af\u4e2d\u306f\u5143\u306e\u7e26\u6a2a\u6bd4\u3092\u7dad\u6301' : '1\u301c1000% \u00b7 \u30ed\u30c3\u30af\u4e2d\u306f\u5143\u306e\u7e26\u6a2a\u6bd4\u3092\u7dad\u6301';
   scaleXInput.setAttribute('aria-label', '\u5168\u753b\u50cf\u306e\u6a2a\u306e' + (unit === 'px' ? '\u5bf8\u6cd5' : '\u500d\u7387'));
   scaleYInput.setAttribute('aria-label', '\u5168\u753b\u50cf\u306e\u7e26\u306e' + (unit === 'px' ? '\u5bf8\u6cd5' : '\u500d\u7387'));
@@ -774,7 +889,11 @@ function renderItemOutput(row: HTMLElement, item: Item) {
     entry.className = 'output-entry';
     const image = document.createElement('div');
     image.className = 'output-image';
-    image.innerHTML = `<div class="image-name-row"><span class="result-file" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>${result.error ? '' : `<span class="status success">${icon('checkCircle', 14)}<span>変換完了</span></span>`}</div>${result.thumbUrl ? `<div class="thumb"><img src="${result.thumbUrl}" alt="" loading="lazy" /></div>` : `<div class="thumb empty">${icon('image', 14)}</div>`}`;
+    image.innerHTML = `<div class="image-name-row"><span class="result-file" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>${result.error ? '' : `<span class="status success">${icon('checkCircle', 14)}<span>\u5909\u63db\u5b8c\u4e86</span></span>`}</div><button type="button" class="thumb preview-trigger${result.thumbUrl ? '' : ' empty'}" aria-label="${escapeHtml(result.name)} の出力画像を拡大表示" data-preview-kind="output" data-result-name="${escapeHtml(result.name)}">${result.thumbUrl ? `<img src="${result.thumbUrl}" alt="" loading="lazy" />` : icon('image', 14)}</button>`;
+    image.querySelector<HTMLButtonElement>('.preview-trigger')!.disabled = Boolean(result.error);
+    image.querySelector<HTMLButtonElement>('.preview-trigger')?.addEventListener('click', (event) => {
+      void openPreview({ kind: 'output', resultName: result.name }, event.currentTarget as HTMLElement);
+    });
     const detail = document.createElement('div');
     detail.className = 'output-detail';
     if (result.error) {
@@ -805,13 +924,14 @@ function renderResults() {
   const fail = results.filter((r) => r.error).length;
   $('result-count').textContent = `${succ} 件成功${fail ? ` · ${fail} 件失敗` : ''}`;
   $('download-all').toggleAttribute('disabled', running || succ === 0);
-  for (const row of list.querySelectorAll<HTMLElement>('[data-item-id]')) {
+  for (const row of list.querySelectorAll<HTMLElement>('.file-row[data-item-id]')) {
     const item = items.find((item) => item.id === row.dataset.itemId);
     if (item) renderItemOutput(row, item);
   }
 }
 
 function cleanupResults() {
+  if (previewTarget?.kind === 'output') closePreview(false);
   for (const result of results) {
     if (result.url) URL.revokeObjectURL(result.url);
     if (result.thumbUrl) URL.revokeObjectURL(result.thumbUrl);
@@ -864,6 +984,11 @@ async function convertAll() {
   const progressWrap = $('progress-wrap');
   progressWrap.hidden = false;
   progressWrap.className = 'progress-wrap running';
+  $('progress-label').textContent = '\u6e96\u5099\u4e2d\u2026';
+  $('progress-percent').textContent = '0%';
+  const progressBar = $('progress-bar');
+  progressBar.dataset.progress = '0';
+  progressBar.parentElement?.setAttribute('aria-valuenow', '0');
   $('convert').setAttribute('disabled', '');
   renderResults();
   renderItems();
@@ -889,6 +1014,7 @@ async function convertAll() {
         const bytes = await item.file.arrayBuffer();
         if (cancelling) break;
         const options = readOptions(frame, item);
+        $('progress-label').textContent = `${complete + 1} / ${total} \u679a\u3092\u5909\u63db\u4e2d \u00b7 ${item.file.name}`;
         const result = await request<ArrayBuffer>(
           { type: 'convert', bytes, filename: item.file.name, options },
           [bytes]
@@ -999,6 +1125,7 @@ function cancel() {
 
 function clearFiles() {
   if (running) return;
+  if (previewTarget) closePreview(false);
   for (const item of items) {
     if (item.thumbUrl) URL.revokeObjectURL(item.thumbUrl);
   }
@@ -1114,6 +1241,13 @@ function setupShortcuts() {
   });
 
   document.addEventListener('keydown', (event) => {
+    if (($('image-preview') as HTMLDialogElement).open) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closePreview();
+      }
+      return;
+    }
     if (event.key === 'Escape') {
       const panel = $('global-size-panel');
       if (!panel.hidden && (panel.contains(document.activeElement) || document.activeElement === $('global-size-toggle'))) {
@@ -1139,6 +1273,32 @@ function setupShortcuts() {
     if (event.key === 'Escape') cancel();
   });
 }
+
+($('image-preview') as HTMLDialogElement).addEventListener('click', (event) => {
+  const dialog = event.currentTarget as HTMLDialogElement;
+  const rect = dialog.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closePreview();
+});
+($('image-preview') as HTMLDialogElement).addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closePreview();
+});
+($('image-preview') as HTMLDialogElement).addEventListener('close', () => {
+  const dialog = $('image-preview') as HTMLDialogElement;
+  if (dialog.open || !previewTarget) return;
+  ++previewToken;
+  removePreviewObjectUrl();
+  ($('image-preview-image') as HTMLImageElement).removeAttribute('src');
+  $('image-preview-image').hidden = true;
+  $('image-preview-status').textContent = '';
+  document.body.classList.remove('image-preview-open');
+  window.scrollTo(0, previewScrollY);
+  const opener = previewOpener;
+  previewOpener = undefined;
+  previewTarget = undefined;
+  (opener?.isConnected ? opener : $('add-files')).focus();
+});
+$('image-preview-close').addEventListener('click', () => closePreview());
 
 /* ── Drag & Drop ─────────────────────────────────────────── */
 function setupDragAndDrop() {
